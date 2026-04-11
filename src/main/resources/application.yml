@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: mall
+  profiles:
+    default: local
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+mall:
+  kafka:
+    enabled: false
+    bootstrap-servers: ${MALL_KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
+    consumer-group: ${MALL_KAFKA_CONSUMER_GROUP:mall-learning-group}
+    topics:
+      order-created: mall.order.created
+      order-cancelled: mall.order.cancelled
+      inventory-reserved: mall.inventory.reserved
+      inventory-released: mall.inventory.released
+  auth:
+    jwt:
+      secret: ${MALL_JWT_SECRET:mall-learning-jwt-secret-key-2026-demo}
+      expires-in-seconds: ${MALL_JWT_EXPIRES_IN_SECONDS:86400}
+
+springdoc:
+  swagger-ui:
+    # 保留底层 springdoc 的页面入口，Knife4j 自己会额外暴露 /doc.html。
+    path: /swagger-ui.html
+
+knife4j:
+  # 开启 Knife4j 的增强文档页，入口地址是 /doc.html。
+  enable: true
+  setting:
+    # 界面语言切成中文，方便当前项目直接阅读。
+    language: zh_cn

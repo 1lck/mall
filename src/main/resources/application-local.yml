@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    # 默认直接连本机 Docker 暴露出来的 PostgreSQL，必要时可用环境变量覆盖。
+    url: jdbc:postgresql://${MALL_PG_HOST:127.0.0.1}:${MALL_PG_PORT:5432}/${MALL_PG_DB:mall}
+    username: ${MALL_PG_USER:mall}
+    password: ${MALL_PG_PASSWORD:mall123}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    # 现在先只接通数据库，不让 Hibernate 擅自改表结构。
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${MALL_KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
+    consumer:
+      group-id: ${MALL_KAFKA_CONSUMER_GROUP:mall-learning-group}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    listener:
+      ack-mode: manual
+
+logging:
+  level:
+    com.mall: INFO
+
+mall:
+  minio:
+    # 本地默认连接刚刚起好的 MinIO 容器，后续部署时可以用环境变量覆盖。
+    endpoint: ${MALL_MINIO_ENDPOINT:http://127.0.0.1:9000}
+    access-key: ${MALL_MINIO_ROOT_USER:mallminio}
+    secret-key: ${MALL_MINIO_ROOT_PASSWORD:mallminio123}
+    bucket: ${MALL_MINIO_BUCKET:mall-product-images}
+    # 这里给前端返回一个可直接展示的地址，默认就走本地 MinIO API 域名。
+    public-base-url: ${MALL_MINIO_PUBLIC_BASE_URL:http://127.0.0.1:9000}

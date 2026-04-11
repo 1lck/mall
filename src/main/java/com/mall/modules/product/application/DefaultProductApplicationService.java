@@ -1,0 +1,131 @@
+package com.mall.modules.product.application;
+
+import com.mall.common.api.ErrorCode;
+import com.mall.common.exception.BusinessException;
+import com.mall.modules.product.api.CreateProductRequest;
+import com.mall.modules.product.api.ProductResponse;
+import com.mall.modules.product.api.UpdateProductRequest;
+import com.mall.modules.product.domain.ProductStatus;
+import com.mall.modules.product.persistence.ProductEntity;
+import com.mall.modules.product.persistence.ProductRepository;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
+
+/**
+ * 商品应用服务，负责承接控制器请求并协调仓储读写。
+ */
+@Service
+@Transactional
+public class DefaultProductApplicationService implements ProductApplicationService {
+
+	private static final DateTimeFormatter PRODUCT_NO_TIME_FORMATTER =
+		DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT).withZone(ZoneOffset.UTC);
+
+	private final ProductRepository productRepository;
+
+	public DefaultProductApplicationService(ProductRepository productRepository) {
+		this.productRepository = productRepository;
+	}
+
+	@Override
+	public ProductResponse createProduct(CreateProductRequest request) {
+		// 第一版先直接在服务层组装商品对象，后续拆更复杂的领域逻辑也方便演进。
+		ProductEntity product = new ProductEntity();
+		product.setProductNo(generateProductNo());
+		product.setName(request.name());
+		product.setCategoryName(request.categoryName());
+		product.setPrice(request.price());
+		product.setStock(request.stock());
+		product.setStatus(ProductStatus.DRAFT);
+		product.setDescription(request.description());
+		product.setImageUrl(request.imageUrl());
+
+		return toResponse(productRepository.save(product));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public ProductResponse getProduct(Long id) {
+		return toResponse(getProductEntity(id));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ProductResponse> listProducts() {
+		// 列表按 id 倒序返回，方便前端先看到最新创建的商品。
+		return productRepository.findAll(Sort.by(Sort.Direction.DESC, "id"))
+			.stream()
+			.map(this::toResponse)
+			.toList();
+	}
+
+	@Override
+	public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
+		// 更新前先查原商品，找不到就直接抛业务异常。
+		ProductEntity product = getProductEntity(id);
+		validateStatusTransition(product.getStatus(), request.status());
+		product.setName(request.name());
+		product.setCategoryName(request.categoryName());
+		product.setPrice(request.price());
+		product.setStock(request.stock());
+		product.setStatus(request.status());
+		product.setDescription(request.description());
+		product.setImageUrl(request.imageUrl());
+
+		return toResponse(productRepository.save(product));
+	}
+
+	@Override
+	public void deleteProduct(Long id) {
+		// 当前先做硬删除，后续如果需要回收站再改成软删除。
+		ProductEntity product = getProductEntity(id);
+		productRepository.delete(product);
+	}
+
+	private ProductEntity getProductEntity(Long id) {
+		// 把“查不到商品”的判断收口到一个地方，避免每个方法重复判空。
+		return productRepository.findById(id)
+			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Product " + id + " was not found"));
+	}
+
+	private void validateStatusTransition(ProductStatus currentStatus, ProductStatus targetStatus) {
+		// 状态流转规则统一收口在服务层，避免接口层直接把任意状态写进数据库。
+		if (!currentStatus.canTransitionTo(targetStatus)) {
+			throw new BusinessException(
+				ErrorCode.BAD_REQUEST,
+				"Product status cannot transition from " + currentStatus + " to " + targetStatus
+			);
+		}
+	}
+
+	private ProductResponse toResponse(ProductEntity product) {
+		// persistence 层对象不直接返回给前端，这里统一转换成接口响应对象。
+		return new ProductResponse(
+			product.getId(),
+			product.getProductNo(),
+			product.getName(),
+			product.getCategoryName(),
+			product.getPrice(),
+			product.getStock(),
+			product.getStatus(),
+			product.getDescription(),
+			product.getImageUrl(),
+			product.getCreatedAt(),
+			product.getUpdatedAt()
+		);
+	}
+
+	private String generateProductNo() {
+		// 用时间戳加随机片段生成商品编号，当前练手项目场景已经够用。
+		return "PRD" + PRODUCT_NO_TIME_FORMATTER.format(Instant.now())
+			+ UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase(Locale.ROOT);
+	}
+}
