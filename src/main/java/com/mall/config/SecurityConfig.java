@@ -80,6 +80,7 @@ public class SecurityConfig {
 				.permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/v1/products", "/api/v1/products/*").permitAll()
 				.requestMatchers("/api/v1/admin/users/**").hasRole("ADMIN")
+				.requestMatchers("/api/v1/admin/dashboard/**").hasRole("ADMIN")
 				.requestMatchers("/api/v1/products/images/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/v1/products").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/v1/products/*").hasRole("ADMIN")

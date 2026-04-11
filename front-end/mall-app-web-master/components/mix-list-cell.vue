@@ -103,7 +103,7 @@
 			align-self: center;
 			font-size:30upx;
 			color:$font-color-base;
-			margin-left:$uni-spacing-row-sm;
+			margin-left:10upx;
 		}
 		.cell-tit{
 			flex: 1;
