@@ -1,5 +1,7 @@
 import request from '@/utils/requestUtil'
 
+const FALLBACK_PRODUCT_IMAGE = '/static/errorImage.jpg'
+
 function mapStatus(status) {
 	if (status === 'PAID') {
 		return 3
@@ -20,18 +22,48 @@ function mapBackendStatus(status) {
 	return 'CREATED'
 }
 
-function toOrderItem(order) {
+function normalizeText(value) {
+	return String(value || '')
+		.replace(/^商品[:：]\s*/u, '')
+		.trim()
+		.toLowerCase()
+}
+
+async function fetchProducts() {
+	const response = await request({
+		method: 'GET',
+		url: '/api/v1/products'
+	})
+	return response.data
+}
+
+function findMatchedProduct(order, products) {
+	const normalizedRemark = normalizeText(order.remark)
+	if (!normalizedRemark) {
+		return null
+	}
+
+	return products.find((product) => {
+		const normalizedName = normalizeText(product.name)
+		return normalizedName === normalizedRemark
+			|| normalizedRemark.includes(normalizedName)
+			|| normalizedName.includes(normalizedRemark)
+	}) || null
+}
+
+function toOrderItem(order, product) {
 	return {
 		id: order.id,
-		productPic: '/static/errorImage.jpg',
-		productName: order.remark || `订单 ${order.orderNo}`,
-		productAttr: JSON.stringify([{ key: '类型', value: '练习订单' }]),
+		productPic: product?.imageUrl || FALLBACK_PRODUCT_IMAGE,
+		productName: product?.name || order.remark || `订单 ${order.orderNo}`,
+		productAttr: JSON.stringify([{ key: '类型', value: product?.categoryName || '练习订单' }]),
 		productQuantity: 1,
 		productPrice: Number(order.totalAmount)
 	}
 }
 
-function mapOrder(order) {
+function mapOrder(order, products = []) {
+	const matchedProduct = findMatchedProduct(order, products)
 	return {
 		id: order.id,
 		orderSn: order.orderNo,
@@ -41,7 +73,7 @@ function mapOrder(order) {
 		totalAmount: Number(order.totalAmount),
 		receiverName: '当前用户',
 		receiverPhone: '',
-		orderItemList: [toOrderItem(order)],
+		orderItemList: [toOrderItem(order, matchedProduct)],
 		note: order.remark || ''
 	}
 }
@@ -114,14 +146,16 @@ export async function generateConfirmOrder(data) {
 export async function generateOrder(data) {
 	let totalAmount = Number(data?.totalAmount || 0)
 	let remark = data?.remark || '商城前台订单'
+	let matchedProduct = null
 
 	if (!totalAmount && Array.isArray(data?.cartIds) && data.cartIds.length > 0) {
 		const productResponse = await request({
 			method: 'GET',
 			url: `/api/v1/products/${data.cartIds[0]}`
 		})
-		totalAmount = Number(productResponse.data.price)
-		remark = productResponse.data.name
+		matchedProduct = productResponse.data
+		totalAmount = Number(matchedProduct.price)
+		remark = matchedProduct.name
 	}
 
 	const response = await request({
@@ -137,17 +171,18 @@ export async function generateOrder(data) {
 		code: 200,
 		message: 'ok',
 		data: {
-			order: mapOrder(response.data)
+			order: mapOrder(response.data, matchedProduct ? [matchedProduct] : [])
 		}
 	}
 }
 
 export async function fetchOrderList(params) {
+	const products = await fetchProducts()
 	const response = await request({
 		method: 'GET',
 		url: '/api/v1/orders'
 	})
-	let orders = response.data.map(mapOrder)
+	let orders = response.data.map((order) => mapOrder(order, products))
 	if (params && params.status !== undefined && params.status !== -1) {
 		orders = orders.filter(item => item.status === params.status)
 	}
@@ -186,10 +221,11 @@ export async function payOrderSuccess(data) {
 
 export async function fetchOrderDetail(orderId) {
 	const order = await fetchBackendOrder(orderId)
+	const products = await fetchProducts()
 	return {
 		code: 200,
 		message: 'ok',
-		data: mapOrder(order)
+		data: mapOrder(order, products)
 	}
 }
 

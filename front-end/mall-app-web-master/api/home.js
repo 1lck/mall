@@ -15,6 +15,22 @@ function mapProduct(item) {
 	}
 }
 
+function buildCategoryGroups(products) {
+	const names = Array.from(new Set(products.map(item => item.productCategoryName).filter(Boolean)))
+	return names.map((name, index) => ({
+		id: index + 1,
+		name,
+		products: products
+			.filter(item => item.productCategoryName === name)
+			.map(item => ({
+				id: item.id,
+				name: item.name,
+				icon: item.pic,
+				parentId: index + 1
+			}))
+	}))
+}
+
 async function listOnSaleProducts() {
 	const response = await request({
 		method: 'GET',
@@ -59,15 +75,25 @@ export async function fetchRecommendProductList(params) {
 
 export async function fetchProductCateList(parentId) {
 	const products = await listOnSaleProducts()
-	const categories = Array.from(new Set(products.map(item => item.productCategoryName).filter(Boolean)))
+	const categories = buildCategoryGroups(products)
+
+	if (!parentId) {
+		return {
+			code: 200,
+			message: 'ok',
+			data: categories.map(item => ({
+				id: item.id,
+				name: item.name,
+				parentId: 0
+			}))
+		}
+	}
+
+	const currentCategory = categories.find(item => item.id === Number(parentId))
 	return {
 		code: 200,
 		message: 'ok',
-		data: categories.map((name, index) => ({
-			id: index + 1,
-			name,
-			parentId
-		}))
+		data: currentCategory ? currentCategory.products : []
 	}
 }
 

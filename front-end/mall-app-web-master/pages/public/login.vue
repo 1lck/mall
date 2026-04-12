@@ -55,10 +55,21 @@
 		methods: {
 			...mapMutations(['login']),
 			navBack() {
-				uni.navigateBack();
+				this.navigateAfterAuth();
 			},
 			toRegist() {
 				uni.navigateTo({url:'/pages/public/register'});
+			},
+			navigateAfterAuth() {
+				const pages = getCurrentPages();
+				if (pages.length > 1) {
+					uni.navigateBack();
+					return;
+				}
+
+				uni.switchTab({
+					url: '/pages/user/user'
+				});
 			},
 			async toLogin() {
 				this.logining = true;
@@ -72,7 +83,8 @@
 					uni.setStorageSync('password',this.password);
 					memberInfo().then(response=>{
 						this.login(response.data);
-						uni.navigateBack();
+						this.logining = false;
+						this.navigateAfterAuth();
 					});
 				}).catch(() => {
 					this.logining = false;

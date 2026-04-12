@@ -1,5 +1,19 @@
 import request from '@/utils/requestUtil'
 
+export async function memberRegister(data) {
+	const response = await request({
+		method: 'POST',
+		url: '/api/v1/auth/register',
+		data
+	})
+
+	return {
+		code: 200,
+		message: response.message,
+		data: response.data
+	}
+}
+
 export async function memberLogin(data) {
 	const response = await request({
 		method: 'POST',

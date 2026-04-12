@@ -7,7 +7,7 @@
 		</scroll-view>
 		<scroll-view scroll-with-animation scroll-y class="right-aside">
 			<view class="s-list">
-				<view @click="navToList(item.id)" class="s-item" v-for="item in slist" :key="item.id">
+				<view @click="navToDetail(item.id)" class="s-item" v-for="item in slist" :key="item.id">
 					<image :src="item.icon||'http://macro-oss.oss-cn-shenzhen.aliyuncs.com/mall/images/20190519/default.png'"></image>
 					<text>{{item.name}}</text>
 				</view>
@@ -50,9 +50,9 @@
 					this.slist = response.data;
 				});
 			},
-			navToList(sid) {
+			navToDetail(id) {
 				uni.navigateTo({
-					url: `/pages/product/list?fid=${this.currentId}&sid=${sid}`
+					url: `/pages/product/product?id=${id}`
 				})
 			}
 		}
