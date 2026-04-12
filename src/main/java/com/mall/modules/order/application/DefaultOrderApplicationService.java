@@ -6,6 +6,7 @@ import com.mall.modules.order.api.CreateOrderRequest;
 import com.mall.modules.order.api.OrderResponse;
 import com.mall.modules.order.api.UpdateOrderRequest;
 import com.mall.modules.order.domain.OrderStatus;
+import com.mall.modules.order.event.OrderCreatedEvent;
 import com.mall.modules.order.persistence.OrderEntity;
 import com.mall.modules.order.persistence.OrderRepository;
 import org.springframework.stereotype.Service;
@@ -29,14 +30,20 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT).withZone(ZoneOffset.UTC);
 
 	private final OrderRepository orderRepository;
+	private final OrderEventPublisher orderEventPublisher;
 
-	public DefaultOrderApplicationService(OrderRepository orderRepository) {
+	public DefaultOrderApplicationService(
+		OrderRepository orderRepository,
+		OrderEventPublisher orderEventPublisher
+	) {
 		this.orderRepository = orderRepository;
+		this.orderEventPublisher = orderEventPublisher;
 	}
 
 	@Override
 	public OrderResponse createOrder(Long currentUserId, CreateOrderRequest request) {
-		// 第一版先在服务层组装订单对象，后面如果接事件流也会从这里扩展。
+		// 这里仍然是“下单”的核心入口。
+		// 第一阶段先保留同步落库逻辑，再在落库成功后补一条订单创建事件。
 		OrderEntity order = new OrderEntity();
 		order.setOrderNo(generateOrderNo());
 		order.setUserId(currentUserId);
@@ -44,7 +51,16 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		order.setStatus(OrderStatus.CREATED);
 		order.setRemark(request.remark());
 
-		return toResponse(orderRepository.save(order));
+		// save(order) 的意义就是把这条订单真正写入 orders 表。
+		// 保存后返回的对象通常会带上数据库生成的 id、时间戳等完整信息，
+		// 所以后面发消息和返回前端时都优先使用 savedOrder。
+		OrderEntity savedOrder = orderRepository.save(order);
+
+		// 第一版先做最简单的事件发布：
+		// 订单已经成功入库 -> 发布 OrderCreatedEvent。
+		// 这样后续库存、支付、超时取消等异步流程都能从这条消息开始扩展。
+		orderEventPublisher.publishOrderCreated(toOrderCreatedEvent(savedOrder));
+		return toResponse(savedOrder);
 	}
 
 	@Override
@@ -113,6 +129,20 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 			order.getRemark(),
 			order.getCreatedAt(),
 			order.getUpdatedAt()
+		);
+	}
+
+	private OrderCreatedEvent toOrderCreatedEvent(OrderEntity order) {
+		// 这里把数据库实体转换成“发给 Kafka 的事件对象”。
+		// 目的就是把“数据库模型”和“消息模型”分开，后面即使表结构变化，
+		// 也不一定要把消息格式一起改乱。
+		return new OrderCreatedEvent(
+			order.getId(),
+			order.getOrderNo(),
+			order.getUserId(),
+			order.getTotalAmount(),
+			order.getStatus().name(),
+			order.getCreatedAt()
 		);
 	}
 
