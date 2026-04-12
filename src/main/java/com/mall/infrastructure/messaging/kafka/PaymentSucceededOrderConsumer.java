@@ -43,13 +43,16 @@ public class PaymentSucceededOrderConsumer {
 	)
 	@Transactional
 	public void onPaymentSucceeded(PaymentSucceededEvent event, Acknowledgment acknowledgment) {
+		// 支付成功这半段和订单创建那半段保持同一种并发模型：
+		// 先抢处理资格，再做状态回写，避免同一笔支付事件被并发重复生效。
 		boolean claimed = orderEventRecordRepository.claimProcessing(
 			PAYMENT_SUCCEEDED_EVENT_TYPE,
 			event.orderNo()
 		) == 1;
 		if (!claimed) {
+			// 即使只是“跳过重复事件”，也统一在事务完成后再 ack，避免两套确认时序。
 			log.info("Kafka payment succeeded event skipped because it was already processed: orderNo={}", event.orderNo());
-			acknowledgment.acknowledge();
+			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 			return;
 		}
 
@@ -64,7 +67,8 @@ public class PaymentSucceededOrderConsumer {
 		orderRepository.save(order);
 
 		log.info("Kafka payment succeeded event consumed and order marked paid: orderNo={}", event.orderNo());
-		acknowledgment.acknowledge();
+		// 订单状态落库成功后，再由 afterCommit 回调确认 Kafka offset。
+		KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 	}
 
 	private void validateOrderStatusTransition(OrderStatus currentStatus, OrderStatus targetStatus) {

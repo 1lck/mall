@@ -46,13 +46,16 @@ public class OrderCreatedLoggingConsumer {
 	public void onOrderCreated(OrderCreatedEvent event, Acknowledgment acknowledgment) {
 		// 直接向数据库抢占“处理资格”：
 		// 插入成功的消费者才能继续处理，插入失败说明已有其他消费者抢先处理过。
+		// 这样不会再出现“两个消费者都先查到空，然后都开始创建支付记录”的窗口。
 		boolean claimed = orderEventRecordRepository.claimProcessing(
 			ORDER_CREATED_EVENT_TYPE,
 			event.orderNo()
 		) == 1;
 		if (!claimed) {
+			// 已被别人处理过时，同样走 afterCommit ack，
+			// 保持“事务结束后再提交 offset”的时序一致性。
 			log.info("Kafka order created event skipped because it was already processed: orderNo={}", event.orderNo());
-			acknowledgment.acknowledge();
+			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 			return;
 		}
 
@@ -74,7 +77,8 @@ public class OrderCreatedLoggingConsumer {
 			event.totalAmount()
 		);
 
-		// 最后手动确认，表示这条消息已经被成功处理。
-		acknowledgment.acknowledge();
+		// 这里不直接 ack。
+		// 只有当前事务真正提交成功之后，才会由 afterCommit 回调去确认这条 Kafka 消息。
+		KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 	}
 }
