@@ -1,6 +1,8 @@
 package com.mall.infrastructure.messaging.kafka;
 
 import com.mall.modules.order.event.OrderCreatedEvent;
+import com.mall.modules.order.persistence.OrderEventRecordEntity;
+import com.mall.modules.order.persistence.OrderEventRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -20,6 +22,11 @@ import org.springframework.stereotype.Component;
 public class OrderCreatedLoggingConsumer {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderCreatedLoggingConsumer.class);
+	private final OrderEventRecordRepository orderEventRecordRepository;
+
+	public OrderCreatedLoggingConsumer(OrderEventRecordRepository orderEventRecordRepository) {
+		this.orderEventRecordRepository = orderEventRecordRepository;
+	}
 
 	@KafkaListener(
 		topics = "${mall.kafka.topics.order-created}",
@@ -27,9 +34,15 @@ public class OrderCreatedLoggingConsumer {
 		containerFactory = "orderCreatedKafkaListenerContainerFactory"
 	)
 	public void onOrderCreated(OrderCreatedEvent event, Acknowledgment acknowledgment) {
-		// 第一阶段消费逻辑先极简：
-		// 收到消息 -> 打日志 -> 手动 ack。
-		// 等链路跑通后，再逐步替换成真正的库存/支付/订单超时逻辑。
+		// 第一阶段先把“消费者真的做了一次业务处理”落下来：
+		// 收到消息后先写一条消费记录到数据库。
+		OrderEventRecordEntity record = new OrderEventRecordEntity();
+		record.setEventType("ORDER_CREATED");
+		record.setOrderNo(event.orderNo());
+		orderEventRecordRepository.save(record);
+
+		// 当前真实业务仍然保持极简：
+		// 先记录消费痕迹，再打印日志，方便你观察消息已经被处理过。
 		log.info(
 			"Kafka order created event consumed: orderId={}, orderNo={}, userId={}, totalAmount={}",
 			event.orderId(),
@@ -38,7 +51,7 @@ public class OrderCreatedLoggingConsumer {
 			event.totalAmount()
 		);
 
-		// 手动确认，表示这条消息已经被成功处理。
+		// 最后手动确认，表示这条消息已经被成功处理。
 		acknowledgment.acknowledge();
 	}
 }
