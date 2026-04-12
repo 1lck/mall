@@ -4,7 +4,6 @@ import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
 import com.mall.modules.order.domain.OrderStatus;
 import com.mall.modules.order.persistence.OrderEntity;
-import com.mall.modules.order.persistence.OrderEventRecordEntity;
 import com.mall.modules.order.persistence.OrderEventRecordRepository;
 import com.mall.modules.order.persistence.OrderRepository;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
@@ -44,11 +43,11 @@ public class PaymentSucceededOrderConsumer {
 	)
 	@Transactional
 	public void onPaymentSucceeded(PaymentSucceededEvent event, Acknowledgment acknowledgment) {
-		boolean alreadyProcessed = orderEventRecordRepository.existsByEventTypeAndOrderNo(
+		boolean claimed = orderEventRecordRepository.claimProcessing(
 			PAYMENT_SUCCEEDED_EVENT_TYPE,
 			event.orderNo()
-		);
-		if (alreadyProcessed) {
+		) == 1;
+		if (!claimed) {
 			log.info("Kafka payment succeeded event skipped because it was already processed: orderNo={}", event.orderNo());
 			acknowledgment.acknowledge();
 			return;
@@ -63,11 +62,6 @@ public class PaymentSucceededOrderConsumer {
 		validateOrderStatusTransition(order.getStatus(), OrderStatus.PAID);
 		order.setStatus(OrderStatus.PAID);
 		orderRepository.save(order);
-
-		OrderEventRecordEntity record = new OrderEventRecordEntity();
-		record.setEventType(PAYMENT_SUCCEEDED_EVENT_TYPE);
-		record.setOrderNo(event.orderNo());
-		orderEventRecordRepository.save(record);
 
 		log.info("Kafka payment succeeded event consumed and order marked paid: orderNo={}", event.orderNo());
 		acknowledgment.acknowledge();

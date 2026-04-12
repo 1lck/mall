@@ -1,7 +1,6 @@
 package com.mall.infrastructure.messaging.kafka;
 
 import com.mall.modules.order.event.OrderCreatedEvent;
-import com.mall.modules.order.persistence.OrderEventRecordEntity;
 import com.mall.modules.order.persistence.OrderEventRecordRepository;
 import com.mall.modules.payment.domain.PaymentStatus;
 import com.mall.modules.payment.persistence.PaymentRecordEntity;
@@ -45,13 +44,13 @@ public class OrderCreatedLoggingConsumer {
 	)
 	@Transactional
 	public void onOrderCreated(OrderCreatedEvent event, Acknowledgment acknowledgment) {
-		// 先做一层应用侧幂等判断：
-		// 如果这条“订单创建事件”已经处理过，就直接确认消息，不再重复入库。
-		boolean alreadyProcessed = orderEventRecordRepository.existsByEventTypeAndOrderNo(
+		// 直接向数据库抢占“处理资格”：
+		// 插入成功的消费者才能继续处理，插入失败说明已有其他消费者抢先处理过。
+		boolean claimed = orderEventRecordRepository.claimProcessing(
 			ORDER_CREATED_EVENT_TYPE,
 			event.orderNo()
-		);
-		if (alreadyProcessed) {
+		) == 1;
+		if (!claimed) {
 			log.info("Kafka order created event skipped because it was already processed: orderNo={}", event.orderNo());
 			acknowledgment.acknowledge();
 			return;
@@ -65,15 +64,8 @@ public class OrderCreatedLoggingConsumer {
 		paymentRecord.setStatus(PaymentStatus.PENDING);
 		paymentRecordRepository.save(paymentRecord);
 
-		// 第一阶段先把“消费者真的做了一次业务处理”落下来：
-		// 当前这里表示：支付记录已经创建成功，这条订单创建消息也可以记为已处理。
-		OrderEventRecordEntity record = new OrderEventRecordEntity();
-		record.setEventType(ORDER_CREATED_EVENT_TYPE);
-		record.setOrderNo(event.orderNo());
-		orderEventRecordRepository.save(record);
-
 		// 当前真实业务仍然保持极简：
-		// 先创建支付记录、再记录消费痕迹，方便你观察消息驱动的后续动作已经开始发生。
+		// 先抢到处理资格，再创建支付记录，避免并发下重复执行业务副作用。
 		log.info(
 			"Kafka order created event consumed and payment record created: orderId={}, orderNo={}, userId={}, totalAmount={}",
 			event.orderId(),

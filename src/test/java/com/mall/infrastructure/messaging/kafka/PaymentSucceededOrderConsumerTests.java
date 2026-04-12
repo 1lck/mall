@@ -50,8 +50,8 @@ class PaymentSucceededOrderConsumerTests {
 		order.setTotalAmount(event.amount());
 		order.setStatus(OrderStatus.CREATED);
 
-		when(orderEventRecordRepository.existsByEventTypeAndOrderNo("PAYMENT_SUCCEEDED", event.orderNo()))
-			.thenReturn(false);
+		when(orderEventRecordRepository.claimProcessing("PAYMENT_SUCCEEDED", event.orderNo()))
+			.thenReturn(1);
 		when(orderRepository.findByOrderNo(event.orderNo()))
 			.thenReturn(Optional.of(order));
 
@@ -59,7 +59,7 @@ class PaymentSucceededOrderConsumerTests {
 
 		assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
 		verify(orderRepository).save(order);
-		verify(orderEventRecordRepository).save(any());
+		verify(orderEventRecordRepository, never()).save(any());
 		verify(acknowledgment).acknowledge();
 	}
 
@@ -71,8 +71,8 @@ class PaymentSucceededOrderConsumerTests {
 			Instant.parse("2026-04-12T08:00:00Z")
 		);
 
-		when(orderEventRecordRepository.existsByEventTypeAndOrderNo("PAYMENT_SUCCEEDED", event.orderNo()))
-			.thenReturn(true);
+		when(orderEventRecordRepository.claimProcessing("PAYMENT_SUCCEEDED", event.orderNo()))
+			.thenReturn(0);
 
 		paymentSucceededOrderConsumer.onPaymentSucceeded(event, acknowledgment);
 
