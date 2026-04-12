@@ -56,19 +56,31 @@ public class PaymentSucceededOrderConsumer {
 			return;
 		}
 
-		OrderEntity order = orderRepository.findByOrderNo(event.orderNo())
-			.orElseThrow(() -> new BusinessException(
-				ErrorCode.NOT_FOUND,
-				"Order " + event.orderNo() + " was not found"
-			));
+		try {
+			OrderEntity order = orderRepository.findByOrderNo(event.orderNo())
+				.orElseThrow(() -> new BusinessException(
+					ErrorCode.NOT_FOUND,
+					"Order " + event.orderNo() + " was not found"
+				));
 
-		validateOrderStatusTransition(order.getStatus(), OrderStatus.PAID);
-		order.setStatus(OrderStatus.PAID);
-		orderRepository.save(order);
+			validateOrderStatusTransition(order.getStatus(), OrderStatus.PAID);
+			order.setStatus(OrderStatus.PAID);
+			orderRepository.save(order);
 
-		log.info("Kafka payment succeeded event consumed and order marked paid: orderNo={}", event.orderNo());
-		// 订单状态落库成功后，再由 afterCommit 回调确认 Kafka offset。
-		KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
+			log.info("Kafka payment succeeded event consumed and order marked paid: orderNo={}", event.orderNo());
+			// 订单状态落库成功后，再由 afterCommit 回调确认 Kafka offset。
+			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
+		} catch (BusinessException exception) {
+			// 业务异常通常重试也不会改变结果，比如订单不存在、状态流转不合法。
+			// 这里选择记录并结束消费，避免同一条坏消息被无限重放。
+			log.warn(
+				"Kafka payment succeeded event dropped as non-retryable business error: orderNo={}, code={}, message={}",
+				event.orderNo(),
+				exception.getErrorCode(),
+				exception.getMessage()
+			);
+			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
+		}
 	}
 
 	private void validateOrderStatusTransition(OrderStatus currentStatus, OrderStatus targetStatus) {
