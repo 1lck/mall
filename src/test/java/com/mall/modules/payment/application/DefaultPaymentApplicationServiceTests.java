@@ -2,14 +2,13 @@ package com.mall.modules.payment.application;
 
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
-import com.mall.modules.order.domain.OrderStatus;
-import com.mall.modules.order.persistence.OrderEntity;
-import com.mall.modules.order.persistence.OrderRepository;
+import com.mall.modules.payment.event.PaymentSucceededEvent;
 import com.mall.modules.payment.domain.PaymentStatus;
 import com.mall.modules.payment.persistence.PaymentRecordEntity;
 import com.mall.modules.payment.persistence.PaymentRecordRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,7 +28,7 @@ class DefaultPaymentApplicationServiceTests {
 	private PaymentRecordRepository paymentRecordRepository;
 
 	@Mock
-	private OrderRepository orderRepository;
+	private PaymentEventPublisher paymentEventPublisher;
 
 	@InjectMocks
 	private DefaultPaymentApplicationService paymentApplicationService;
@@ -40,23 +39,19 @@ class DefaultPaymentApplicationServiceTests {
 		paymentRecord.setOrderNo("ORD20260412123456AAAAAA");
 		paymentRecord.setAmount(new BigDecimal("199.90"));
 		paymentRecord.setStatus(PaymentStatus.PENDING);
-		OrderEntity order = new OrderEntity();
-		order.setOrderNo("ORD20260412123456AAAAAA");
-		order.setUserId(42L);
-		order.setTotalAmount(new BigDecimal("199.90"));
-		order.setStatus(OrderStatus.CREATED);
 
 		when(paymentRecordRepository.findByOrderNo("ORD20260412123456AAAAAA"))
 			.thenReturn(Optional.of(paymentRecord));
-		when(orderRepository.findByOrderNo("ORD20260412123456AAAAAA"))
-			.thenReturn(Optional.of(order));
 
 		paymentApplicationService.markPaymentSuccess("ORD20260412123456AAAAAA");
 
 		assertThat(paymentRecord.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-		assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
 		verify(paymentRecordRepository).save(paymentRecord);
-		verify(orderRepository).save(order);
+
+		ArgumentCaptor<PaymentSucceededEvent> eventCaptor = ArgumentCaptor.forClass(PaymentSucceededEvent.class);
+		verify(paymentEventPublisher).publishPaymentSucceeded(eventCaptor.capture());
+		assertThat(eventCaptor.getValue().orderNo()).isEqualTo("ORD20260412123456AAAAAA");
+		assertThat(eventCaptor.getValue().amount()).isEqualByComparingTo("199.90");
 	}
 
 	@Test
@@ -78,16 +73,9 @@ class DefaultPaymentApplicationServiceTests {
 		paymentRecord.setOrderNo("ORD20260412123456BBBBBB");
 		paymentRecord.setAmount(new BigDecimal("199.90"));
 		paymentRecord.setStatus(PaymentStatus.FAILED);
-		OrderEntity order = new OrderEntity();
-		order.setOrderNo("ORD20260412123456BBBBBB");
-		order.setUserId(42L);
-		order.setTotalAmount(new BigDecimal("199.90"));
-		order.setStatus(OrderStatus.CREATED);
 
 		when(paymentRecordRepository.findByOrderNo("ORD20260412123456BBBBBB"))
 			.thenReturn(Optional.of(paymentRecord));
-		when(orderRepository.findByOrderNo("ORD20260412123456BBBBBB"))
-			.thenReturn(Optional.of(order));
 
 		assertThatThrownBy(() -> paymentApplicationService.markPaymentSuccess("ORD20260412123456BBBBBB"))
 			.isInstanceOf(BusinessException.class)

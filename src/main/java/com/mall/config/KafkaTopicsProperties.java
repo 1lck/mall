@@ -53,6 +53,7 @@ public class KafkaTopicsProperties {
 		// 这里把所有 topic 名称收口到一起，调用方拿配置时更清晰。
 		private String orderCreated;
 		private String orderCancelled;
+		private String paymentSucceeded;
 		private String inventoryReserved;
 		private String inventoryReleased;
 
@@ -70,6 +71,14 @@ public class KafkaTopicsProperties {
 
 		public void setOrderCancelled(String orderCancelled) {
 			this.orderCancelled = orderCancelled;
+		}
+
+		public String getPaymentSucceeded() {
+			return paymentSucceeded;
+		}
+
+		public void setPaymentSucceeded(String paymentSucceeded) {
+			this.paymentSucceeded = paymentSucceeded;
 		}
 
 		public String getInventoryReserved() {

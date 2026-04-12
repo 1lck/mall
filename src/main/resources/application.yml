@@ -24,6 +24,7 @@ mall:
     topics:
       order-created: mall.order.created
       order-cancelled: mall.order.cancelled
+      payment-succeeded: mall.payment.succeeded
       inventory-reserved: mall.inventory.reserved
       inventory-released: mall.inventory.released
   auth:

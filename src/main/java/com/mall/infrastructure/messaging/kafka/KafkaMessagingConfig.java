@@ -2,6 +2,7 @@ package com.mall.infrastructure.messaging.kafka;
 
 import com.mall.config.KafkaTopicsProperties;
 import com.mall.modules.order.event.OrderCreatedEvent;
+import com.mall.modules.payment.event.PaymentSucceededEvent;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -61,10 +62,38 @@ public class KafkaMessagingConfig {
 	}
 
 	@Bean
+	public ConsumerFactory<String, PaymentSucceededEvent> paymentSucceededConsumerFactory(KafkaProperties kafkaProperties) {
+		Map<String, Object> consumerProperties = new HashMap<>(kafkaProperties.buildConsumerProperties());
+		JsonDeserializer<PaymentSucceededEvent> valueDeserializer = new JsonDeserializer<>(PaymentSucceededEvent.class);
+		valueDeserializer.addTrustedPackages("com.mall.modules.payment.event");
+		return new DefaultKafkaConsumerFactory<>(consumerProperties, new StringDeserializer(), valueDeserializer);
+	}
+
+	@Bean
+	public ConcurrentKafkaListenerContainerFactory<String, PaymentSucceededEvent> paymentSucceededKafkaListenerContainerFactory(
+		ConsumerFactory<String, PaymentSucceededEvent> paymentSucceededConsumerFactory
+	) {
+		ConcurrentKafkaListenerContainerFactory<String, PaymentSucceededEvent> factory =
+			new ConcurrentKafkaListenerContainerFactory<>();
+		factory.setConsumerFactory(paymentSucceededConsumerFactory);
+		factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+		return factory;
+	}
+
+	@Bean
 	public NewTopic orderCreatedTopic(KafkaTopicsProperties kafkaTopicsProperties) {
 		// 启动时自动确保 topic 存在，避免你第一次联调时还得手动创建主题。
 		return TopicBuilder
 			.name(kafkaTopicsProperties.getTopics().getOrderCreated())
+			.partitions(1)
+			.replicas(1)
+			.build();
+	}
+
+	@Bean
+	public NewTopic paymentSucceededTopic(KafkaTopicsProperties kafkaTopicsProperties) {
+		return TopicBuilder
+			.name(kafkaTopicsProperties.getTopics().getPaymentSucceeded())
 			.partitions(1)
 			.replicas(1)
 			.build();
