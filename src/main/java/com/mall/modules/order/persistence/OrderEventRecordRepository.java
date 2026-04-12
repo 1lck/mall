@@ -12,4 +12,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * 可以继续在这里补 existsBy... 之类的查询方法。</p>
  */
 public interface OrderEventRecordRepository extends JpaRepository<OrderEventRecordEntity, Long> {
+
+	/**
+	 * 判断某个订单事件是否已经被处理过。
+	 *
+	 * <p>这里先用 eventType + orderNo 做一版最小幂等判断，
+	 * 方便我们在消费者里先挡住重复消费。</p>
+	 */
+	boolean existsByEventTypeAndOrderNo(String eventType, String orderNo);
 }
