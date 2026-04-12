@@ -48,12 +48,11 @@ class OrderCreatedLoggingConsumerTests {
 			Instant.parse("2026-04-12T06:00:00Z")
 		);
 
-		when(orderEventRecordRepository.existsByEventTypeAndOrderNo("ORDER_CREATED", event.orderNo()))
-			.thenReturn(true);
+		when(orderEventRecordRepository.claimProcessing("ORDER_CREATED", event.orderNo()))
+			.thenReturn(0);
 
 		orderCreatedLoggingConsumer.onOrderCreated(event, acknowledgment);
 
-		verify(orderEventRecordRepository, never()).save(any());
 		verify(paymentRecordRepository, never()).save(any());
 		verify(acknowledgment).acknowledge();
 	}
@@ -69,8 +68,8 @@ class OrderCreatedLoggingConsumerTests {
 			Instant.parse("2026-04-12T06:00:00Z")
 		);
 
-		when(orderEventRecordRepository.existsByEventTypeAndOrderNo("ORDER_CREATED", event.orderNo()))
-			.thenReturn(false);
+		when(orderEventRecordRepository.claimProcessing("ORDER_CREATED", event.orderNo()))
+			.thenReturn(1);
 
 		orderCreatedLoggingConsumer.onOrderCreated(event, acknowledgment);
 
@@ -82,5 +81,6 @@ class OrderCreatedLoggingConsumerTests {
 		assertThat(paymentRecord.getAmount()).isEqualByComparingTo("199.90");
 		assertThat(paymentRecord.getStatus()).isEqualTo(PaymentStatus.PENDING);
 		verify(acknowledgment).acknowledge();
+		verify(orderEventRecordRepository, never()).save(any());
 	}
 }
