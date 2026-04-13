@@ -70,6 +70,10 @@ public class OutboxEventEntity {
 		return id;
 	}
 
+	public void setId(Long id) {
+		this.id = id;
+	}
+
 	public String getEventId() {
 		return eventId;
 	}

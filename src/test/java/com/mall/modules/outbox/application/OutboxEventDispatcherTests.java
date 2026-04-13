@@ -132,4 +132,41 @@ class OutboxEventDispatcherTests {
 		verify(outboxEventRepository, never())
 			.updateDispatchResult(any(), any(), anyInt(), any(), any(), any());
 	}
+
+	@Test
+	void dispatchEventByIdShouldSendExactEventWhenItExists() {
+		OutboxEventDispatcher outboxEventDispatcher =
+			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper);
+		OutboxEventEntity event = new OutboxEventEntity();
+		event.setId(7L);
+		event.setEventId("evt-7");
+		event.setEventType("PAYMENT_SUCCEEDED");
+		event.setTopic("mall.payment.succeeded");
+		event.setMessageKey("ORD-EXACT-007");
+		event.setStatus(OutboxEventStatus.PENDING);
+		event.setRetryCount(0);
+		event.setPayload(objectMapper.valueToTree(new PaymentSucceededEvent(
+			"ORD-EXACT-007",
+			new BigDecimal("66.00"),
+			Instant.parse("2026-04-12T10:00:00Z")
+		)));
+
+		when(outboxEventRepository.findById(7L)).thenReturn(java.util.Optional.of(event));
+
+		outboxEventDispatcher.dispatchEventById(7L);
+
+		verify(kafkaTemplate).send(
+			org.mockito.ArgumentMatchers.eq("mall.payment.succeeded"),
+			org.mockito.ArgumentMatchers.eq("ORD-EXACT-007"),
+			org.mockito.ArgumentMatchers.any()
+		);
+		verify(outboxEventRepository).updateDispatchResult(
+			org.mockito.ArgumentMatchers.eq(7L),
+			org.mockito.ArgumentMatchers.eq(OutboxEventStatus.SENT),
+			org.mockito.ArgumentMatchers.eq(0),
+			org.mockito.ArgumentMatchers.isNull(),
+			org.mockito.ArgumentMatchers.isNull(),
+			org.mockito.ArgumentMatchers.any()
+		);
+	}
 }

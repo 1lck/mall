@@ -3,6 +3,7 @@ package com.mall.infrastructure.messaging.kafka;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.config.KafkaTopicsProperties;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
+import com.mall.modules.outbox.application.OutboxDispatchTrigger;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
@@ -24,6 +25,9 @@ class KafkaPaymentEventPublisherTests {
 	@Mock
 	private OutboxEventMapper outboxEventRepository;
 
+	@Mock
+	private OutboxDispatchTrigger outboxDispatchTrigger;
+
 	@Test
 	void publishPaymentSucceededShouldSavePendingOutboxEvent() {
 		KafkaTopicsProperties properties = new KafkaTopicsProperties();
@@ -34,6 +38,7 @@ class KafkaPaymentEventPublisherTests {
 		KafkaPaymentEventPublisher publisher = new KafkaPaymentEventPublisher(
 			properties,
 			outboxEventRepository,
+			outboxDispatchTrigger,
 			new ObjectMapper().findAndRegisterModules()
 		);
 		PaymentSucceededEvent event = new PaymentSucceededEvent(
@@ -41,6 +46,11 @@ class KafkaPaymentEventPublisherTests {
 			new BigDecimal("199.90"),
 			Instant.parse("2026-04-12T08:00:00Z")
 		);
+		org.mockito.Mockito.doAnswer(invocation -> {
+			OutboxEventEntity saved = invocation.getArgument(0);
+			saved.setId(101L);
+			return saved;
+		}).when(outboxEventRepository).save(org.mockito.ArgumentMatchers.any(OutboxEventEntity.class));
 
 		publisher.publishPaymentSucceeded(event);
 
@@ -58,5 +68,6 @@ class KafkaPaymentEventPublisherTests {
 		assertThat(savedEvent.getPayload().get("orderNo").asText()).isEqualTo(event.orderNo());
 		assertThat(savedEvent.getPayload().get("amount").decimalValue())
 			.isEqualByComparingTo("199.90");
+		verify(outboxDispatchTrigger).requestDispatch(101L);
 	}
 }

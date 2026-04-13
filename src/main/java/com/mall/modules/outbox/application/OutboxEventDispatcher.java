@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 统一的 outbox 扫描投递器。
@@ -54,6 +55,18 @@ public class OutboxEventDispatcher {
 		for (OutboxEventEntity event : events) {
 			dispatchSingleEvent(event);
 		}
+	}
+
+	public void dispatchEventById(Long outboxEventId) {
+		// 即时触发路径只关心当前这条 outbox 记录：
+		// 查到了就精确投递，查不到就直接结束，不再顺手扫描整批数据。
+		Optional<OutboxEventEntity> eventOptional = outboxEventRepository.findById(outboxEventId);
+		if (eventOptional.isEmpty()) {
+			return;
+		}
+
+		OutboxEventEntity event = eventOptional.get();
+		dispatchSingleEvent(event);
 	}
 
 	private void dispatchSingleEvent(OutboxEventEntity event) {

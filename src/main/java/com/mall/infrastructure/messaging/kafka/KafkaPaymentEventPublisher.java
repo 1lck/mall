@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.config.KafkaTopicsProperties;
 import com.mall.modules.payment.application.PaymentEventPublisher;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
+import com.mall.modules.outbox.application.OutboxDispatchTrigger;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
@@ -31,15 +32,18 @@ public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
 
 	private final KafkaTopicsProperties kafkaTopicsProperties;
 	private final OutboxEventMapper outboxEventRepository;
+	private final OutboxDispatchTrigger outboxDispatchTrigger;
 	private final ObjectMapper objectMapper;
 
 	public KafkaPaymentEventPublisher(
 		KafkaTopicsProperties kafkaTopicsProperties,
 		OutboxEventMapper outboxEventRepository,
+		OutboxDispatchTrigger outboxDispatchTrigger,
 		ObjectMapper objectMapper
 	) {
 		this.kafkaTopicsProperties = kafkaTopicsProperties;
 		this.outboxEventRepository = outboxEventRepository;
+		this.outboxDispatchTrigger = outboxDispatchTrigger;
 		this.objectMapper = objectMapper;
 	}
 
@@ -61,6 +65,9 @@ public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
 		outboxEvent.setStatus(OutboxEventStatus.PENDING);
 		outboxEvent.setRetryCount(0);
 		outboxEventRepository.save(outboxEvent);
+		// 记录完 outbox 后立即申请一次“精确投递当前这条记录”。
+		// 如果当前还在事务里，这次投递会被挂到 afterCommit；否则直接触发。
+		outboxDispatchTrigger.requestDispatch(outboxEvent.getId());
 		log.info(
 			"Payment succeeded event saved to outbox: topic={}, orderNo={}, eventType={}",
 			topic,
