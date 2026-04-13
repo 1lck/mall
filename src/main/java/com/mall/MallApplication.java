@@ -3,6 +3,7 @@ package com.mall;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Spring Boot 应用启动入口。
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
+@EnableScheduling
 public class MallApplication {
 
 	public static void main(String[] args) {

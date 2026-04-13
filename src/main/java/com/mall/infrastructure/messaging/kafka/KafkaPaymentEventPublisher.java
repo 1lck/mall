@@ -15,7 +15,11 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * 基于 Kafka 的支付事件发布器。
+ * 支付成功事件发布器。
+ *
+ * <p>名字上虽然还是 publisher，但现在它不再直接发 Kafka。
+ * 它真正做的是：把支付成功事件转换成一条 outbox 记录，
+ * 让当前业务事务把“待发送消息”先可靠落库。</p>
  */
 @Component
 @ConditionalOnProperty(name = "mall.kafka.enabled", havingValue = "true")
@@ -42,6 +46,10 @@ public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
 	@Override
 	public void publishPaymentSucceeded(PaymentSucceededEvent event) {
 		String topic = kafkaTopicsProperties.getTopics().getPaymentSucceeded();
+
+		// 这里不直接 send Kafka。
+		// 当前阶段先把“要发什么消息”完整写进 outbox 表，
+		// 后面的扫描投递器再统一负责真正投递。
 		OutboxEventEntity outboxEvent = new OutboxEventEntity();
 		outboxEvent.setEventId(UUID.randomUUID().toString());
 		outboxEvent.setAggregateType(AGGREGATE_TYPE);
