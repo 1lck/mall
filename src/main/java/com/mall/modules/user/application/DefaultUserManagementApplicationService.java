@@ -2,13 +2,12 @@ package com.mall.modules.user.application;
 
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
-import com.mall.modules.user.api.CreateUserRequest;
-import com.mall.modules.user.api.UpdateUserStatusRequest;
-import com.mall.modules.user.api.UserAdminResponse;
+import com.mall.modules.user.dto.CreateUserDTO;
+import com.mall.modules.user.dto.UpdateUserStatusDTO;
 import com.mall.modules.user.domain.UserStatus;
-import com.mall.modules.user.persistence.UserEntity;
-import com.mall.modules.user.persistence.UserRepository;
-import org.springframework.data.domain.Sort;
+import com.mall.modules.user.persistence.entity.UserEntity;
+import com.mall.modules.user.persistence.mapper.UserMapper;
+import com.mall.modules.user.vo.UserAdminVO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,25 +19,25 @@ import java.util.Locale;
 @Transactional
 public class DefaultUserManagementApplicationService implements UserManagementApplicationService {
 
-	private final UserRepository userRepository;
+	private final UserMapper userRepository;
 	private final PasswordEncoder passwordEncoder;
 
-	public DefaultUserManagementApplicationService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+	public DefaultUserManagementApplicationService(UserMapper userRepository, PasswordEncoder passwordEncoder) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<UserAdminResponse> listUsers() {
-		return userRepository.findAll(Sort.by(Sort.Direction.DESC, "id"))
+	public List<UserAdminVO> listUsers() {
+		return userRepository.findAllByOrderByIdDesc()
 			.stream()
 			.map(this::toResponse)
 			.toList();
 	}
 
 	@Override
-	public UserAdminResponse createUser(CreateUserRequest request) {
+	public UserAdminVO createUser(CreateUserDTO request) {
 		String username = normalizeUsername(request.username());
 		if (userRepository.existsByUsername(username)) {
 			throw new BusinessException(ErrorCode.BAD_REQUEST, "用户名已存在，请更换一个。");
@@ -55,15 +54,15 @@ public class DefaultUserManagementApplicationService implements UserManagementAp
 	}
 
 	@Override
-	public UserAdminResponse updateUserStatus(Long id, UpdateUserStatusRequest request) {
+	public UserAdminVO updateUserStatus(Long id, UpdateUserStatusDTO request) {
 		UserEntity user = userRepository.findById(id)
 			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "User " + id + " was not found"));
 		user.setStatus(request.status());
 		return toResponse(userRepository.save(user));
 	}
 
-	private UserAdminResponse toResponse(UserEntity user) {
-		return new UserAdminResponse(
+	private UserAdminVO toResponse(UserEntity user) {
+		return new UserAdminVO(
 			user.getId(),
 			user.getUsername(),
 			user.getNickname(),

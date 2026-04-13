@@ -2,13 +2,12 @@ package com.mall.modules.product.application;
 
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
-import com.mall.modules.product.api.CreateProductRequest;
-import com.mall.modules.product.api.ProductResponse;
-import com.mall.modules.product.api.UpdateProductRequest;
+import com.mall.modules.product.dto.CreateProductDTO;
+import com.mall.modules.product.dto.UpdateProductDTO;
 import com.mall.modules.product.domain.ProductStatus;
-import com.mall.modules.product.persistence.ProductEntity;
-import com.mall.modules.product.persistence.ProductRepository;
-import org.springframework.data.domain.Sort;
+import com.mall.modules.product.persistence.entity.ProductEntity;
+import com.mall.modules.product.persistence.mapper.ProductMapper;
+import com.mall.modules.product.vo.ProductVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,14 +28,14 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 	private static final DateTimeFormatter PRODUCT_NO_TIME_FORMATTER =
 		DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT).withZone(ZoneOffset.UTC);
 
-	private final ProductRepository productRepository;
+	private final ProductMapper productRepository;
 
-	public DefaultProductApplicationService(ProductRepository productRepository) {
+	public DefaultProductApplicationService(ProductMapper productRepository) {
 		this.productRepository = productRepository;
 	}
 
 	@Override
-	public ProductResponse createProduct(CreateProductRequest request) {
+	public ProductVO createProduct(CreateProductDTO request) {
 		// 第一版先直接在服务层组装商品对象，后续拆更复杂的领域逻辑也方便演进。
 		ProductEntity product = new ProductEntity();
 		product.setProductNo(generateProductNo());
@@ -53,22 +52,22 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 
 	@Override
 	@Transactional(readOnly = true)
-	public ProductResponse getProduct(Long id) {
+	public ProductVO getProduct(Long id) {
 		return toResponse(getProductEntity(id));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<ProductResponse> listProducts() {
+	public List<ProductVO> listProducts() {
 		// 列表按 id 倒序返回，方便前端先看到最新创建的商品。
-		return productRepository.findAll(Sort.by(Sort.Direction.DESC, "id"))
+		return productRepository.findAllByOrderByIdDesc()
 			.stream()
 			.map(this::toResponse)
 			.toList();
 	}
 
 	@Override
-	public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
+	public ProductVO updateProduct(Long id, UpdateProductDTO request) {
 		// 更新前先查原商品，找不到就直接抛业务异常。
 		ProductEntity product = getProductEntity(id);
 		validateStatusTransition(product.getStatus(), request.status());
@@ -106,9 +105,9 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 		}
 	}
 
-	private ProductResponse toResponse(ProductEntity product) {
+	private ProductVO toResponse(ProductEntity product) {
 		// persistence 层对象不直接返回给前端，这里统一转换成接口响应对象。
-		return new ProductResponse(
+		return new ProductVO(
 			product.getId(),
 			product.getProductNo(),
 			product.getName(),

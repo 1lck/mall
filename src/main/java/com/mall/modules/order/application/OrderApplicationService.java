@@ -1,8 +1,8 @@
 package com.mall.modules.order.application;
 
-import com.mall.modules.order.api.CreateOrderRequest;
-import com.mall.modules.order.api.OrderResponse;
-import com.mall.modules.order.api.UpdateOrderRequest;
+import com.mall.modules.order.dto.CreateOrderDTO;
+import com.mall.modules.order.vo.OrderVO;
+import com.mall.modules.order.dto.UpdateOrderDTO;
 
 import java.util.List;
 
@@ -11,13 +11,13 @@ import java.util.List;
  */
 public interface OrderApplicationService {
 
-	OrderResponse createOrder(Long currentUserId, CreateOrderRequest request);
+	OrderVO createOrder(Long currentUserId, CreateOrderDTO request);
 
-	OrderResponse getOrder(Long currentUserId, boolean isAdmin, Long id);
+	OrderVO getOrder(Long currentUserId, boolean isAdmin, Long id);
 
-	List<OrderResponse> listOrders(Long currentUserId, boolean isAdmin);
+	List<OrderVO> listOrders(Long currentUserId, boolean isAdmin);
 
-	OrderResponse updateOrder(Long currentUserId, boolean isAdmin, Long id, UpdateOrderRequest request);
+	OrderVO updateOrder(Long currentUserId, boolean isAdmin, Long id, UpdateOrderDTO request);
 
 	void deleteOrder(Long currentUserId, boolean isAdmin, Long id);
 }

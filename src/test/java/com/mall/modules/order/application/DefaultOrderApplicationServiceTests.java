@@ -2,14 +2,14 @@ package com.mall.modules.order.application;
 
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
-import com.mall.modules.order.api.CreateOrderRequest;
+import com.mall.modules.order.dto.CreateOrderDTO;
 import com.mall.modules.order.domain.OrderStatus;
 import com.mall.modules.order.event.OrderCreatedEvent;
-import com.mall.modules.order.persistence.OrderEntity;
-import com.mall.modules.order.persistence.OrderRepository;
+import com.mall.modules.order.persistence.entity.OrderEntity;
+import com.mall.modules.order.persistence.mapper.OrderMapper;
 import com.mall.modules.product.domain.ProductStatus;
-import com.mall.modules.product.persistence.ProductEntity;
-import com.mall.modules.product.persistence.ProductRepository;
+import com.mall.modules.product.persistence.entity.ProductEntity;
+import com.mall.modules.product.persistence.mapper.ProductMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -31,13 +31,13 @@ import static org.mockito.Mockito.when;
 class DefaultOrderApplicationServiceTests {
 
 	@Mock
-	private OrderRepository orderRepository;
+	private OrderMapper orderRepository;
 
 	@Mock
 	private OrderEventPublisher orderEventPublisher;
 
 	@Mock
-	private ProductRepository productRepository;
+	private ProductMapper productRepository;
 
 	@InjectMocks
 	private DefaultOrderApplicationService orderApplicationService;
@@ -54,7 +54,7 @@ class DefaultOrderApplicationServiceTests {
 
 		orderApplicationService.createOrder(
 			42L,
-			new CreateOrderRequest(7L, 2, "练习订单")
+			new CreateOrderDTO(7L, 2, "练习订单")
 		);
 
 		ArgumentCaptor<OrderCreatedEvent> eventCaptor = ArgumentCaptor.forClass(OrderCreatedEvent.class);
@@ -77,7 +77,7 @@ class DefaultOrderApplicationServiceTests {
 
 		assertThatThrownBy(() -> orderApplicationService.createOrder(
 			42L,
-			new CreateOrderRequest(7L, 2, "库存不足订单")
+			new CreateOrderDTO(7L, 2, "库存不足订单")
 		))
 			.isInstanceOf(BusinessException.class)
 			.extracting("errorCode")

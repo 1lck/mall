@@ -1,6 +1,6 @@
 package com.mall.modules.product.application;
 
-import com.mall.modules.product.api.ProductImageUploadResponse;
+import com.mall.modules.product.vo.ProductImageUploadVO;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -8,5 +8,5 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface ProductImageApplicationService {
 
-	ProductImageUploadResponse uploadImage(MultipartFile file);
+	ProductImageUploadVO uploadImage(MultipartFile file);
 }

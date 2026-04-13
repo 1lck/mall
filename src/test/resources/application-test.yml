@@ -5,7 +5,3 @@ mall:
     secret-key: test-secret-key
     bucket: mall-test-product-images
     public-base-url: http://127.0.0.1:9000
-
-spring:
-  jpa:
-    open-in-view: false

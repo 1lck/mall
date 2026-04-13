@@ -1,13 +1,13 @@
 package com.mall.system;
 
 import com.mall.modules.order.domain.OrderStatus;
-import com.mall.modules.order.persistence.OrderEntity;
-import com.mall.modules.order.persistence.OrderRepository;
+import com.mall.modules.order.persistence.entity.OrderEntity;
+import com.mall.modules.order.persistence.mapper.OrderMapper;
 import com.mall.modules.product.domain.ProductStatus;
-import com.mall.modules.product.persistence.ProductEntity;
-import com.mall.modules.product.persistence.ProductRepository;
-import com.mall.modules.user.persistence.UserEntity;
-import com.mall.modules.user.persistence.UserRepository;
+import com.mall.modules.product.persistence.entity.ProductEntity;
+import com.mall.modules.product.persistence.mapper.ProductMapper;
+import com.mall.modules.user.persistence.entity.UserEntity;
+import com.mall.modules.user.persistence.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +15,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -27,14 +26,14 @@ public class AdminDashboardService {
 	private static final int LOW_STOCK_THRESHOLD = 10;
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 
-	private final OrderRepository orderRepository;
-	private final ProductRepository productRepository;
-	private final UserRepository userRepository;
+	private final OrderMapper orderRepository;
+	private final ProductMapper productRepository;
+	private final UserMapper userRepository;
 
 	public AdminDashboardService(
-		OrderRepository orderRepository,
-		ProductRepository productRepository,
-		UserRepository userRepository
+		OrderMapper orderRepository,
+		ProductMapper productRepository,
+		UserMapper userRepository
 	) {
 		this.orderRepository = orderRepository;
 		this.productRepository = productRepository;
@@ -58,7 +57,7 @@ public class AdminDashboardService {
 		List<UserEntity> users = userRepository.findAll();
 
 		LocalDate yesterday = today.minusDays(1);
-		LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+		LocalDate rollingWeekStart = today.minusDays(6);
 		LocalDate monthStart = today.withDayOfMonth(1);
 
 		long todayOrderCount = orders.stream()
@@ -95,9 +94,9 @@ public class AdminDashboardService {
 
 		AdminDashboardResponse.OrderStatistics orderStatistics = new AdminDashboardResponse.OrderStatistics(
 			countOrdersCreatedInRange(orders, monthStart, today, zoneId),
-			countOrdersCreatedInRange(orders, weekStart, today, zoneId),
+			countOrdersCreatedInRange(orders, rollingWeekStart, today, zoneId),
 			sumPaidOrdersInRange(orders, monthStart, today, zoneId),
-			sumPaidOrdersInRange(orders, weekStart, today, zoneId)
+			sumPaidOrdersInRange(orders, rollingWeekStart, today, zoneId)
 		);
 
 		List<AdminDashboardResponse.OrderTrendItem> orderTrend = buildOrderTrend(orders, startDate, endDate, zoneId);

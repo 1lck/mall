@@ -1,16 +1,16 @@
 package com.mall.modules.auth.application;
 
-import com.mall.modules.auth.api.AuthUserResponse;
-import com.mall.modules.auth.api.LoginRequest;
-import com.mall.modules.auth.api.LoginResponse;
-import com.mall.modules.auth.api.RegisterRequest;
+import com.mall.modules.auth.vo.AuthUserVO;
+import com.mall.modules.auth.dto.LoginDTO;
+import com.mall.modules.auth.vo.LoginVO;
+import com.mall.modules.auth.dto.RegisterDTO;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 public interface AuthApplicationService {
 
-	AuthUserResponse register(RegisterRequest request);
+	AuthUserVO register(RegisterDTO request);
 
-	LoginResponse login(LoginRequest request);
+	LoginVO login(LoginDTO request);
 
-	AuthUserResponse getCurrentUser(Jwt jwt);
+	AuthUserVO getCurrentUser(Jwt jwt);
 }

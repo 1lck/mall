@@ -1,9 +1,9 @@
 package com.mall.modules.user.controller;
 
 import com.mall.common.api.ApiResponse;
-import com.mall.modules.user.api.CreateUserRequest;
-import com.mall.modules.user.api.UpdateUserStatusRequest;
-import com.mall.modules.user.api.UserAdminResponse;
+import com.mall.modules.user.dto.CreateUserDTO;
+import com.mall.modules.user.dto.UpdateUserStatusDTO;
+import com.mall.modules.user.vo.UserAdminVO;
 import com.mall.modules.user.application.UserManagementApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,21 +32,21 @@ public class UserManagementController {
 
 	@GetMapping
 	@Operation(summary = "List users", description = "Returns all users for the admin console.")
-	public ApiResponse<List<UserAdminResponse>> listUsers() {
+	public ApiResponse<List<UserAdminVO>> listUsers() {
 		return ApiResponse.success(userManagementApplicationService.listUsers());
 	}
 
 	@PostMapping
 	@Operation(summary = "Create user", description = "Creates a backend-manageable user account.")
-	public ResponseEntity<ApiResponse<UserAdminResponse>> createUser(@Valid @RequestBody CreateUserRequest request) {
+	public ResponseEntity<ApiResponse<UserAdminVO>> createUser(@Valid @RequestBody CreateUserDTO request) {
 		return ResponseEntity.status(201).body(ApiResponse.success(userManagementApplicationService.createUser(request)));
 	}
 
 	@PatchMapping("/{id}/status")
 	@Operation(summary = "Update user status", description = "Toggles a user account between active and disabled.")
-	public ApiResponse<UserAdminResponse> updateUserStatus(
+	public ApiResponse<UserAdminVO> updateUserStatus(
 		@PathVariable Long id,
-		@Valid @RequestBody UpdateUserStatusRequest request
+		@Valid @RequestBody UpdateUserStatusDTO request
 	) {
 		return ApiResponse.success(userManagementApplicationService.updateUserStatus(id, request));
 	}

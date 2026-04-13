@@ -1,8 +1,8 @@
 package com.mall.modules.product.application;
 
-import com.mall.modules.product.api.CreateProductRequest;
-import com.mall.modules.product.api.ProductResponse;
-import com.mall.modules.product.api.UpdateProductRequest;
+import com.mall.modules.product.dto.CreateProductDTO;
+import com.mall.modules.product.vo.ProductVO;
+import com.mall.modules.product.dto.UpdateProductDTO;
 
 import java.util.List;
 
@@ -11,13 +11,13 @@ import java.util.List;
  */
 public interface ProductApplicationService {
 
-	ProductResponse createProduct(CreateProductRequest request);
+	ProductVO createProduct(CreateProductDTO request);
 
-	ProductResponse getProduct(Long id);
+	ProductVO getProduct(Long id);
 
-	List<ProductResponse> listProducts();
+	List<ProductVO> listProducts();
 
-	ProductResponse updateProduct(Long id, UpdateProductRequest request);
+	ProductVO updateProduct(Long id, UpdateProductDTO request);
 
 	void deleteProduct(Long id);
 }

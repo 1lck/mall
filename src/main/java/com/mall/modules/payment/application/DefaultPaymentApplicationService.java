@@ -4,8 +4,8 @@ import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
 import com.mall.modules.payment.domain.PaymentStatus;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
-import com.mall.modules.payment.persistence.PaymentRecordEntity;
-import com.mall.modules.payment.persistence.PaymentRecordRepository;
+import com.mall.modules.payment.persistence.entity.PaymentRecordEntity;
+import com.mall.modules.payment.persistence.mapper.PaymentRecordMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +22,11 @@ import java.time.Instant;
 @Transactional
 public class DefaultPaymentApplicationService implements PaymentApplicationService {
 
-	private final PaymentRecordRepository paymentRecordRepository;
+	private final PaymentRecordMapper paymentRecordRepository;
 	private final PaymentEventPublisher paymentEventPublisher;
 
 	public DefaultPaymentApplicationService(
-		PaymentRecordRepository paymentRecordRepository,
+		PaymentRecordMapper paymentRecordRepository,
 		PaymentEventPublisher paymentEventPublisher
 	) {
 		this.paymentRecordRepository = paymentRecordRepository;

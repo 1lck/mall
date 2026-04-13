@@ -2,15 +2,15 @@ package com.mall.modules.order.application;
 
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
-import com.mall.modules.order.api.CreateOrderRequest;
-import com.mall.modules.order.api.OrderResponse;
-import com.mall.modules.order.api.UpdateOrderRequest;
+import com.mall.modules.order.dto.CreateOrderDTO;
+import com.mall.modules.order.vo.OrderVO;
+import com.mall.modules.order.dto.UpdateOrderDTO;
 import com.mall.modules.order.domain.OrderStatus;
 import com.mall.modules.order.event.OrderCreatedEvent;
-import com.mall.modules.order.persistence.OrderEntity;
-import com.mall.modules.order.persistence.OrderRepository;
-import com.mall.modules.product.persistence.ProductEntity;
-import com.mall.modules.product.persistence.ProductRepository;
+import com.mall.modules.order.persistence.entity.OrderEntity;
+import com.mall.modules.order.persistence.mapper.OrderMapper;
+import com.mall.modules.product.persistence.entity.ProductEntity;
+import com.mall.modules.product.persistence.mapper.ProductMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,13 +33,13 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 	private static final DateTimeFormatter ORDER_NO_TIME_FORMATTER =
 		DateTimeFormatter.ofPattern("yyyyMMddHHmmss", Locale.ROOT).withZone(ZoneOffset.UTC);
 
-	private final OrderRepository orderRepository;
-	private final ProductRepository productRepository;
+	private final OrderMapper orderRepository;
+	private final ProductMapper productRepository;
 	private final OrderEventPublisher orderEventPublisher;
 
 	public DefaultOrderApplicationService(
-		OrderRepository orderRepository,
-		ProductRepository productRepository,
+		OrderMapper orderRepository,
+		ProductMapper productRepository,
 		OrderEventPublisher orderEventPublisher
 	) {
 		this.orderRepository = orderRepository;
@@ -48,7 +48,7 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 	}
 
 	@Override
-	public OrderResponse createOrder(Long currentUserId, CreateOrderRequest request) {
+	public OrderVO createOrder(Long currentUserId, CreateOrderDTO request) {
 		// 下单主流程：
 		// 1. 找到商品
 		// 2. 校验库存
@@ -90,14 +90,14 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public OrderResponse getOrder(Long currentUserId, boolean isAdmin, Long id) {
+	public OrderVO getOrder(Long currentUserId, boolean isAdmin, Long id) {
 		// 按订单 id 读取单条订单，并在这里统一处理“管理员可看全部、普通用户只能看自己”的权限差异。
 		return toResponse(getOrderEntity(currentUserId, isAdmin, id));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<OrderResponse> listOrders(Long currentUserId, boolean isAdmin) {
+	public List<OrderVO> listOrders(Long currentUserId, boolean isAdmin) {
 		// 读取订单列表：
 		// 管理员看全部订单，普通用户只看自己的订单。
 		List<OrderEntity> orders = isAdmin
@@ -112,7 +112,7 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 	}
 
 	@Override
-	public OrderResponse updateOrder(Long currentUserId, boolean isAdmin, Long id, UpdateOrderRequest request) {
+	public OrderVO updateOrder(Long currentUserId, boolean isAdmin, Long id, UpdateOrderDTO request) {
 		// 更新订单允许修改的字段，并在这里统一校验状态流转是否合法。
 		// 更新时先查原订单，找不到就直接抛业务异常。
 		OrderEntity order = getOrderEntity(currentUserId, isAdmin, id);
@@ -159,10 +159,10 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		}
 	}
 
-	private OrderResponse toResponse(OrderEntity order) {
+	private OrderVO toResponse(OrderEntity order) {
 		// 把数据库实体转换成接口响应对象，避免 controller 直接暴露 persistence 层模型。
 		// persistence 层对象不直接返回给前端，这里统一转换成接口响应对象。
-		return new OrderResponse(
+		return new OrderVO(
 			order.getId(),
 			order.getOrderNo(),
 			order.getUserId(),

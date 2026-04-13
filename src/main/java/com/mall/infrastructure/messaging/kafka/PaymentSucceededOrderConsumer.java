@@ -3,9 +3,9 @@ package com.mall.infrastructure.messaging.kafka;
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
 import com.mall.modules.order.domain.OrderStatus;
-import com.mall.modules.order.persistence.OrderEntity;
-import com.mall.modules.order.persistence.OrderEventRecordRepository;
-import com.mall.modules.order.persistence.OrderRepository;
+import com.mall.modules.order.persistence.entity.OrderEntity;
+import com.mall.modules.order.persistence.mapper.OrderEventRecordMapper;
+import com.mall.modules.order.persistence.mapper.OrderMapper;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,12 +25,12 @@ public class PaymentSucceededOrderConsumer {
 	private static final Logger log = LoggerFactory.getLogger(PaymentSucceededOrderConsumer.class);
 	private static final String PAYMENT_SUCCEEDED_EVENT_TYPE = "PAYMENT_SUCCEEDED";
 
-	private final OrderRepository orderRepository;
-	private final OrderEventRecordRepository orderEventRecordRepository;
+	private final OrderMapper orderRepository;
+	private final OrderEventRecordMapper orderEventRecordRepository;
 
 	public PaymentSucceededOrderConsumer(
-		OrderRepository orderRepository,
-		OrderEventRecordRepository orderEventRecordRepository
+		OrderMapper orderRepository,
+		OrderEventRecordMapper orderEventRecordRepository
 	) {
 		this.orderRepository = orderRepository;
 		this.orderEventRecordRepository = orderEventRecordRepository;
