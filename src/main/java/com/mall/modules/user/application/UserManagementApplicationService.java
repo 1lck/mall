@@ -1,16 +1,16 @@
 package com.mall.modules.user.application;
 
-import com.mall.modules.user.api.CreateUserRequest;
-import com.mall.modules.user.api.UpdateUserStatusRequest;
-import com.mall.modules.user.api.UserAdminResponse;
+import com.mall.modules.user.dto.CreateUserDTO;
+import com.mall.modules.user.dto.UpdateUserStatusDTO;
+import com.mall.modules.user.vo.UserAdminVO;
 
 import java.util.List;
 
 public interface UserManagementApplicationService {
 
-	List<UserAdminResponse> listUsers();
+	List<UserAdminVO> listUsers();
 
-	UserAdminResponse createUser(CreateUserRequest request);
+	UserAdminVO createUser(CreateUserDTO request);
 
-	UserAdminResponse updateUserStatus(Long id, UpdateUserStatusRequest request);
+	UserAdminVO updateUserStatus(Long id, UpdateUserStatusDTO request);
 }

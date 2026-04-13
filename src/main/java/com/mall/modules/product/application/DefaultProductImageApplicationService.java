@@ -3,7 +3,7 @@ package com.mall.modules.product.application;
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
 import com.mall.config.MinioProperties;
-import com.mall.modules.product.api.ProductImageUploadResponse;
+import com.mall.modules.product.vo.ProductImageUploadVO;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -49,7 +49,7 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 	}
 
 	@Override
-	public ProductImageUploadResponse uploadImage(MultipartFile file) {
+	public ProductImageUploadVO uploadImage(MultipartFile file) {
 		validateImageFile(file);
 		ensureBucketReady();
 
@@ -70,7 +70,7 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to upload image to MinIO");
 		}
 
-		return new ProductImageUploadResponse(objectKey, buildImageUrl(objectKey));
+		return new ProductImageUploadVO(objectKey, buildImageUrl(objectKey));
 	}
 
 	private void validateImageFile(MultipartFile file) {

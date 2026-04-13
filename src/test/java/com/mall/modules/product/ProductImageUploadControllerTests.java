@@ -1,7 +1,7 @@
 package com.mall.modules.product;
 
 import com.mall.common.exception.GlobalExceptionHandler;
-import com.mall.modules.product.api.ProductImageUploadResponse;
+import com.mall.modules.product.vo.ProductImageUploadVO;
 import com.mall.modules.product.application.ProductImageApplicationService;
 import com.mall.modules.product.controller.ProductImageController;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ class ProductImageUploadControllerTests {
 		);
 
 		given(productImageApplicationService.uploadImage(file)).willReturn(
-			new ProductImageUploadResponse(
+			new ProductImageUploadVO(
 				"product-images/2026/04/11/test-file.png",
 				"http://localhost:9000/mall-product-images/product-images/2026/04/11/test-file.png"
 			)

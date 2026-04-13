@@ -1,10 +1,10 @@
 package com.mall.modules.auth.controller;
 
 import com.mall.common.api.ApiResponse;
-import com.mall.modules.auth.api.AuthUserResponse;
-import com.mall.modules.auth.api.LoginRequest;
-import com.mall.modules.auth.api.LoginResponse;
-import com.mall.modules.auth.api.RegisterRequest;
+import com.mall.modules.auth.vo.AuthUserVO;
+import com.mall.modules.auth.dto.LoginDTO;
+import com.mall.modules.auth.vo.LoginVO;
+import com.mall.modules.auth.dto.RegisterDTO;
 import com.mall.modules.auth.application.AuthApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,19 +31,19 @@ public class AuthController {
 
 	@PostMapping("/register")
 	@Operation(summary = "Register user", description = "Creates a new basic user account for the mall.")
-	public ResponseEntity<ApiResponse<AuthUserResponse>> register(@Valid @RequestBody RegisterRequest request) {
+	public ResponseEntity<ApiResponse<AuthUserVO>> register(@Valid @RequestBody RegisterDTO request) {
 		return ResponseEntity.status(201).body(ApiResponse.success(authApplicationService.register(request)));
 	}
 
 	@PostMapping("/login")
 	@Operation(summary = "Login", description = "Verifies the account credentials and returns a JWT token.")
-	public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+	public ApiResponse<LoginVO> login(@Valid @RequestBody LoginDTO request) {
 		return ApiResponse.success(authApplicationService.login(request));
 	}
 
 	@GetMapping("/me")
 	@Operation(summary = "Current user", description = "Reads the profile of the currently authenticated user.")
-	public ApiResponse<AuthUserResponse> me(@AuthenticationPrincipal Jwt jwt) {
+	public ApiResponse<AuthUserVO> me(@AuthenticationPrincipal Jwt jwt) {
 		return ApiResponse.success(authApplicationService.getCurrentUser(jwt));
 	}
 }

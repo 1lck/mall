@@ -1,11 +1,15 @@
 package com.mall;
 
 import com.mall.support.IntegrationTestSupport;
+import org.apache.ibatis.session.SqlSessionFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -36,6 +40,9 @@ class MallApplicationTests extends IntegrationTestSupport {
 
 	@Autowired
 	private Environment environment;
+
+	@Autowired
+	private ApplicationContext applicationContext;
 
 	@Test
 	void contextLoads() {
@@ -97,6 +104,29 @@ class MallApplicationTests extends IntegrationTestSupport {
 			resultSet.next();
 			assertEquals(1, resultSet.getInt(1));
 		}
+	}
+
+	@Test
+	void persistenceLayerShouldExposeMybatisPlusInsteadOfJpa() {
+		assertEquals(false, applicationContext.containsBean("entityManagerFactory"));
+		assertEquals(1, applicationContext.getBeanNamesForType(SqlSessionFactory.class).length);
+		assertEquals(true, applicationContext.containsBean("productMapper"));
+	}
+
+	@Test
+	void backendModuleStructureShouldUseDtoVoAndNestedPersistencePackages() {
+		assertEquals(false, Files.exists(Path.of("src/main/java/com/mall/modules/auth/api")));
+		assertEquals(false, Files.exists(Path.of("src/main/java/com/mall/modules/order/api")));
+		assertEquals(false, Files.exists(Path.of("src/main/java/com/mall/modules/product/api")));
+		assertEquals(false, Files.exists(Path.of("src/main/java/com/mall/modules/user/api")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/order/persistence/entity")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/order/persistence/mapper")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/payment/persistence/entity")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/payment/persistence/mapper")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/product/persistence/entity")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/product/persistence/mapper")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/user/persistence/entity")));
+		assertEquals(true, Files.exists(Path.of("src/main/java/com/mall/modules/user/persistence/mapper")));
 	}
 
 }

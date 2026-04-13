@@ -3,9 +3,9 @@ package com.mall.infrastructure.messaging.kafka;
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
 import com.mall.modules.order.domain.OrderStatus;
-import com.mall.modules.order.persistence.OrderEntity;
-import com.mall.modules.order.persistence.OrderEventRecordRepository;
-import com.mall.modules.order.persistence.OrderRepository;
+import com.mall.modules.order.persistence.entity.OrderEntity;
+import com.mall.modules.order.persistence.mapper.OrderEventRecordMapper;
+import com.mall.modules.order.persistence.mapper.OrderMapper;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,10 +30,10 @@ import static org.mockito.Mockito.when;
 class PaymentSucceededOrderConsumerTests {
 
 	@Mock
-	private OrderRepository orderRepository;
+	private OrderMapper orderRepository;
 
 	@Mock
-	private OrderEventRecordRepository orderEventRecordRepository;
+	private OrderEventRecordMapper orderEventRecordRepository;
 
 	@Mock
 	private Acknowledgment acknowledgment;

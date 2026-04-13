@@ -4,8 +4,8 @@ import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
 import com.mall.modules.payment.domain.PaymentStatus;
-import com.mall.modules.payment.persistence.PaymentRecordEntity;
-import com.mall.modules.payment.persistence.PaymentRecordRepository;
+import com.mall.modules.payment.persistence.entity.PaymentRecordEntity;
+import com.mall.modules.payment.persistence.mapper.PaymentRecordMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 class DefaultPaymentApplicationServiceTests {
 
 	@Mock
-	private PaymentRecordRepository paymentRecordRepository;
+	private PaymentRecordMapper paymentRecordRepository;
 
 	@Mock
 	private PaymentEventPublisher paymentEventPublisher;

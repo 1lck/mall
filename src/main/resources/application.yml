@@ -43,3 +43,9 @@ knife4j:
   setting:
     # 界面语言切成中文，方便当前项目直接阅读。
     language: zh_cn
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false

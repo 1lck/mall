@@ -1,9 +1,9 @@
 package com.mall.modules.product.controller;
 
 import com.mall.common.api.ApiResponse;
-import com.mall.modules.product.api.CreateProductRequest;
-import com.mall.modules.product.api.ProductResponse;
-import com.mall.modules.product.api.UpdateProductRequest;
+import com.mall.modules.product.dto.CreateProductDTO;
+import com.mall.modules.product.vo.ProductVO;
+import com.mall.modules.product.dto.UpdateProductDTO;
 import com.mall.modules.product.application.ProductApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,8 +36,8 @@ public class ProductController {
 
 	@PostMapping
 	@Operation(summary = "Create product", description = "Creates a new product and returns the persisted result.")
-	public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
-		@Valid @RequestBody CreateProductRequest request
+	public ResponseEntity<ApiResponse<ProductVO>> createProduct(
+		@Valid @RequestBody CreateProductDTO request
 	) {
 		// 创建接口单独返回 201，更符合 REST 语义。
 		return ResponseEntity.status(201)
@@ -46,21 +46,21 @@ public class ProductController {
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Get product by id", description = "Reads a single product by its primary key.")
-	public ApiResponse<ProductResponse> getProduct(@PathVariable Long id) {
+	public ApiResponse<ProductVO> getProduct(@PathVariable Long id) {
 		return ApiResponse.success(productApplicationService.getProduct(id));
 	}
 
 	@GetMapping
 	@Operation(summary = "List products", description = "Returns all products ordered by id descending.")
-	public ApiResponse<List<ProductResponse>> listProducts() {
+	public ApiResponse<List<ProductVO>> listProducts() {
 		return ApiResponse.success(productApplicationService.listProducts());
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update product", description = "Updates editable fields of an existing product.")
-	public ApiResponse<ProductResponse> updateProduct(
+	public ApiResponse<ProductVO> updateProduct(
 		@PathVariable Long id,
-		@Valid @RequestBody UpdateProductRequest request
+		@Valid @RequestBody UpdateProductDTO request
 	) {
 		return ApiResponse.success(productApplicationService.updateProduct(id, request));
 	}

@@ -5,11 +5,6 @@ spring:
     username: ${MALL_PG_USER:mall}
     password: ${MALL_PG_PASSWORD:mall123}
     driver-class-name: org.postgresql.Driver
-  jpa:
-    # 现在先只接通数据库，不让 Hibernate 擅自改表结构。
-    hibernate:
-      ddl-auto: none
-    open-in-view: false
   kafka:
     bootstrap-servers: ${MALL_KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
     producer:

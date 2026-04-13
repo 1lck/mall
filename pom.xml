@@ -35,9 +35,10 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 		<dependency>
-			<!-- 先接入 JPA，后面写 CRUD 时就不需要再补一轮持久化基础设施。 -->
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
+			<!-- 用 MyBatis-Plus 承接持久层，统一改为 Mapper 模式。 -->
+			<groupId>com.baomidou</groupId>
+			<artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+			<version>3.5.16</version>
 		</dependency>
 		<dependency>
 			<!-- 使用 Spring 自带的 JWT 编解码支持，避免额外拉一套未托管版本。 -->

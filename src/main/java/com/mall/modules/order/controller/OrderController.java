@@ -1,9 +1,9 @@
 package com.mall.modules.order.controller;
 
 import com.mall.common.api.ApiResponse;
-import com.mall.modules.order.api.CreateOrderRequest;
-import com.mall.modules.order.api.OrderResponse;
-import com.mall.modules.order.api.UpdateOrderRequest;
+import com.mall.modules.order.dto.CreateOrderDTO;
+import com.mall.modules.order.vo.OrderVO;
+import com.mall.modules.order.dto.UpdateOrderDTO;
 import com.mall.modules.order.application.OrderApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,9 +38,9 @@ public class OrderController {
 
 	@PostMapping
 	@Operation(summary = "Create order", description = "Creates a new order and returns the persisted result.")
-	public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
+	public ResponseEntity<ApiResponse<OrderVO>> createOrder(
 		@AuthenticationPrincipal Jwt jwt,
-		@Valid @RequestBody CreateOrderRequest request
+		@Valid @RequestBody CreateOrderDTO request
 	) {
 		// 创建接口单独返回 201，更符合 REST 语义。
 		return ResponseEntity.status(201)
@@ -49,22 +49,22 @@ public class OrderController {
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Get order by id", description = "Reads a single order by its primary key.")
-	public ApiResponse<OrderResponse> getOrder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+	public ApiResponse<OrderVO> getOrder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
 		return ApiResponse.success(orderApplicationService.getOrder(readCurrentUserId(jwt), isAdmin(jwt), id));
 	}
 
 	@GetMapping
 	@Operation(summary = "List orders", description = "Returns all orders ordered by id descending.")
-	public ApiResponse<List<OrderResponse>> listOrders(@AuthenticationPrincipal Jwt jwt) {
+	public ApiResponse<List<OrderVO>> listOrders(@AuthenticationPrincipal Jwt jwt) {
 		return ApiResponse.success(orderApplicationService.listOrders(readCurrentUserId(jwt), isAdmin(jwt)));
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update order", description = "Updates editable fields of an existing order.")
-	public ApiResponse<OrderResponse> updateOrder(
+	public ApiResponse<OrderVO> updateOrder(
 		@AuthenticationPrincipal Jwt jwt,
 		@PathVariable Long id,
-		@Valid @RequestBody UpdateOrderRequest request
+		@Valid @RequestBody UpdateOrderDTO request
 	) {
 		return ApiResponse.success(orderApplicationService.updateOrder(readCurrentUserId(jwt), isAdmin(jwt), id, request));
 	}

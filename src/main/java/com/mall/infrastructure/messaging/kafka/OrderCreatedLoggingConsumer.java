@@ -1,10 +1,10 @@
 package com.mall.infrastructure.messaging.kafka;
 
 import com.mall.modules.order.event.OrderCreatedEvent;
-import com.mall.modules.order.persistence.OrderEventRecordRepository;
+import com.mall.modules.order.persistence.mapper.OrderEventRecordMapper;
 import com.mall.modules.payment.domain.PaymentStatus;
-import com.mall.modules.payment.persistence.PaymentRecordEntity;
-import com.mall.modules.payment.persistence.PaymentRecordRepository;
+import com.mall.modules.payment.persistence.entity.PaymentRecordEntity;
+import com.mall.modules.payment.persistence.mapper.PaymentRecordMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,12 +26,12 @@ public class OrderCreatedLoggingConsumer {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderCreatedLoggingConsumer.class);
 	private static final String ORDER_CREATED_EVENT_TYPE = "ORDER_CREATED";
-	private final OrderEventRecordRepository orderEventRecordRepository;
-	private final PaymentRecordRepository paymentRecordRepository;
+	private final OrderEventRecordMapper orderEventRecordRepository;
+	private final PaymentRecordMapper paymentRecordRepository;
 
 	public OrderCreatedLoggingConsumer(
-		OrderEventRecordRepository orderEventRecordRepository,
-		PaymentRecordRepository paymentRecordRepository
+		OrderEventRecordMapper orderEventRecordRepository,
+		PaymentRecordMapper paymentRecordRepository
 	) {
 		this.orderEventRecordRepository = orderEventRecordRepository;
 		this.paymentRecordRepository = paymentRecordRepository;
