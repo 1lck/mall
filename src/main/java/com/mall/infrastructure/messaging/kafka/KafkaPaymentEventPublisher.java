@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 基于 Kafka 的支付事件发布器。
@@ -31,18 +33,22 @@ public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
 
 	@Override
 	public void publishPaymentSucceeded(PaymentSucceededEvent event) {
-		// topic 名不直接写死在代码里，而是统一从配置中读取。
-		// 这样后面如果你想改 topic，只需要改 yml，不用改业务代码。
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					doSend(event);
+				}
+			});
+			return;
+		}
+
+		doSend(event);
+	}
+
+	private void doSend(PaymentSucceededEvent event) {
 		String topic = kafkaTopicsProperties.getTopics().getPaymentSucceeded();
-
-		// 真正发送 Kafka 消息的就是这句：
-		// 第一个参数是 topic，
-		// 第二个参数是消息 key，这里继续用 orderNo，方便按订单维度观察消息，
-		// 第三个参数才是真正的消息体，也就是 PaymentSucceededEvent。
 		kafkaTemplate.send(topic, event.orderNo(), event);
-
-		// 发完后打一条日志，便于你在本地联调时确认：
-		// “支付成功事件已经从生产者发出去了”。
 		log.info("Kafka payment succeeded event published: topic={}, orderNo={}", topic, event.orderNo());
 	}
 }

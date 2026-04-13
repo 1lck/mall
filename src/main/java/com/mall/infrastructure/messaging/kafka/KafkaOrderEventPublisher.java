@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 基于 Kafka 的订单事件发布器。
@@ -34,20 +36,28 @@ public class KafkaOrderEventPublisher implements OrderEventPublisher {
 
 	@Override
 	public void publishOrderCreated(OrderCreatedEvent event) {
-		// topic 名称不在代码里写死，统一从配置里拿。
-		// 这样你后面改 topic，不用回头改业务代码。
-		String topic = kafkaTopicsProperties.getTopics().getOrderCreated();
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					doSend(event);
+				}
+			});
+			return;
+		}
 
-		// 这里真正把消息发到 Kafka：
-		// topic = 发到哪个主题
-		// key   = 用订单号做消息 key，后面更方便按订单维度观察消息
-		// value = 真正的订单创建事件
+		doSend(event);
+	}
+
+	private void doSend(OrderCreatedEvent event) {
+		String topic = kafkaTopicsProperties.getTopics().getOrderCreated();
 		kafkaTemplate.send(topic, event.orderNo(), event);
 		log.info(
-			"Kafka order event published: topic={}, orderId={}, orderNo={}",
-			topic,
-			event.orderId(),
-			event.orderNo()
+				"Kafka order event published: topic={}, orderId={}, orderNo={}",
+				topic,
+				event.orderId(),
+				event.orderNo()
 		);
 	}
+
 }
