@@ -13,6 +13,8 @@ public record OrderResponse(
 	String orderNo,
 	Long userId,
 	BigDecimal totalAmount,
+	Long productId,
+	Integer quantity,
 	OrderStatus status,
 	String remark,
 	Instant createdAt,

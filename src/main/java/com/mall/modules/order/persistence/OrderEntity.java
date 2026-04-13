@@ -35,6 +35,12 @@ public class OrderEntity {
 	@Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
 	private BigDecimal totalAmount;
 
+	@Column(name = "product_id")
+	private Long productId;
+
+	@Column(name = "quantity")
+	private Integer quantity;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false, length = 32)
 	private OrderStatus status;
@@ -88,6 +94,22 @@ public class OrderEntity {
 
 	public void setTotalAmount(BigDecimal totalAmount) {
 		this.totalAmount = totalAmount;
+	}
+
+	public Long getProductId() {
+		return productId;
+	}
+
+	public void setProductId(Long productId) {
+		this.productId = productId;
+	}
+
+	public Integer getQuantity() {
+		return quantity;
+	}
+
+	public void setQuantity(Integer quantity) {
+		this.quantity = quantity;
 	}
 
 	public OrderStatus getStatus() {

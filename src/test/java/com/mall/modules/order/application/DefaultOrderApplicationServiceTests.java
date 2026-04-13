@@ -1,10 +1,15 @@
 package com.mall.modules.order.application;
 
+import com.mall.common.api.ErrorCode;
+import com.mall.common.exception.BusinessException;
 import com.mall.modules.order.api.CreateOrderRequest;
 import com.mall.modules.order.domain.OrderStatus;
 import com.mall.modules.order.event.OrderCreatedEvent;
 import com.mall.modules.order.persistence.OrderEntity;
 import com.mall.modules.order.persistence.OrderRepository;
+import com.mall.modules.product.domain.ProductStatus;
+import com.mall.modules.product.persistence.ProductEntity;
+import com.mall.modules.product.persistence.ProductRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -13,7 +18,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -28,11 +36,16 @@ class DefaultOrderApplicationServiceTests {
 	@Mock
 	private OrderEventPublisher orderEventPublisher;
 
+	@Mock
+	private ProductRepository productRepository;
+
 	@InjectMocks
 	private DefaultOrderApplicationService orderApplicationService;
 
 	@Test
-	void createOrderShouldPublishOrderCreatedEventAfterPersistingOrder() {
+	void createOrderShouldPublishOrderCreatedEventAfterPersistingOrderAndDeductStock() {
+		ProductEntity product = buildProduct(8, new BigDecimal("99.95"));
+		when(productRepository.findById(7L)).thenReturn(Optional.of(product));
 		when(orderRepository.save(any(OrderEntity.class))).thenAnswer(invocation -> {
 			OrderEntity order = invocation.getArgument(0);
 			setOrderId(order, 101L);
@@ -41,7 +54,7 @@ class DefaultOrderApplicationServiceTests {
 
 		orderApplicationService.createOrder(
 			42L,
-			new CreateOrderRequest(new BigDecimal("199.90"), "练习订单")
+			new CreateOrderRequest(7L, 2, "练习订单")
 		);
 
 		ArgumentCaptor<OrderCreatedEvent> eventCaptor = ArgumentCaptor.forClass(OrderCreatedEvent.class);
@@ -53,6 +66,22 @@ class DefaultOrderApplicationServiceTests {
 		assertThat(event.totalAmount()).isEqualByComparingTo("199.90");
 		assertThat(event.status()).isEqualTo(OrderStatus.CREATED.name());
 		assertThat(event.orderNo()).startsWith("ORD");
+		assertThat(product.getStock()).isEqualTo(6);
+		verify(productRepository).save(product);
+	}
+
+	@Test
+	void createOrderShouldRejectWhenProductStockIsInsufficient() {
+		ProductEntity product = buildProduct(1, new BigDecimal("99.95"));
+		when(productRepository.findById(7L)).thenReturn(Optional.of(product));
+
+		assertThatThrownBy(() -> orderApplicationService.createOrder(
+			42L,
+			new CreateOrderRequest(7L, 2, "库存不足订单")
+		))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.BAD_REQUEST);
 	}
 
 	private void setOrderId(OrderEntity order, Long id) {
@@ -63,5 +92,17 @@ class DefaultOrderApplicationServiceTests {
 		} catch (ReflectiveOperationException exception) {
 			throw new IllegalStateException("Failed to set order id for test", exception);
 		}
+	}
+
+	private ProductEntity buildProduct(int stock, BigDecimal price) {
+		ProductEntity product = new ProductEntity();
+		product.setProductNo("PRD202604130001");
+		product.setName("练习商品");
+		product.setCategoryName("练习分类");
+		product.setPrice(price.setScale(2, RoundingMode.HALF_UP));
+		product.setStock(stock);
+		product.setStatus(ProductStatus.ON_SALE);
+		product.setDescription("练习商品描述");
+		return product;
 	}
 }
