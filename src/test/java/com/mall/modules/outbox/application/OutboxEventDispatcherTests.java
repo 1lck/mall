@@ -33,11 +33,12 @@ class OutboxEventDispatcherTests {
 	private KafkaTemplate<String, Object> kafkaTemplate;
 
 	private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+	private final OutboxRetryPolicy outboxRetryPolicy = new OutboxRetryPolicy();
 
 	@Test
 	void dispatchPendingEventsShouldSendPaymentEventAndMarkSent() {
 		OutboxEventDispatcher outboxEventDispatcher =
-			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper);
+			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper, outboxRetryPolicy);
 		OutboxEventEntity event = new OutboxEventEntity();
 		event.setEventId("evt-1");
 		event.setEventType("PAYMENT_SUCCEEDED");
@@ -82,7 +83,7 @@ class OutboxEventDispatcherTests {
 	@Test
 	void dispatchPendingEventsShouldRecordFailureAndRetryPlanWhenSendFails() {
 		OutboxEventDispatcher outboxEventDispatcher =
-			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper);
+			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper, outboxRetryPolicy);
 		OutboxEventEntity event = new OutboxEventEntity();
 		event.setEventId("evt-2");
 		event.setEventType("PAYMENT_SUCCEEDED");
@@ -116,13 +117,14 @@ class OutboxEventDispatcherTests {
 			org.mockito.ArgumentMatchers.isNull()
 		);
 		assertThat(nextRetryAtCaptor.getValue()).isNotNull();
+		assertThat(nextRetryAtCaptor.getValue()).isAfter(Instant.now().plusSeconds(20));
 		assertThat(lastErrorCaptor.getValue()).contains("broker unavailable");
 	}
 
 	@Test
 	void dispatchPendingEventsShouldSkipWhenNoDispatchableEventsExist() {
 		OutboxEventDispatcher outboxEventDispatcher =
-			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper);
+			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper, outboxRetryPolicy);
 		when(outboxEventRepository.findDispatchableBatch(any(), anyInt()))
 			.thenReturn(List.of());
 
@@ -136,7 +138,7 @@ class OutboxEventDispatcherTests {
 	@Test
 	void dispatchEventByIdShouldSendExactEventWhenItExists() {
 		OutboxEventDispatcher outboxEventDispatcher =
-			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper);
+			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper, outboxRetryPolicy);
 		OutboxEventEntity event = new OutboxEventEntity();
 		event.setId(7L);
 		event.setEventId("evt-7");
@@ -167,6 +169,41 @@ class OutboxEventDispatcherTests {
 			org.mockito.ArgumentMatchers.isNull(),
 			org.mockito.ArgumentMatchers.isNull(),
 			org.mockito.ArgumentMatchers.any()
+		);
+	}
+
+	@Test
+	void dispatchPendingEventsShouldMoveEventToDeadWhenRetryLimitIsExceeded() {
+		OutboxEventDispatcher outboxEventDispatcher =
+			new OutboxEventDispatcher(outboxEventRepository, kafkaTemplate, objectMapper, outboxRetryPolicy);
+		OutboxEventEntity event = new OutboxEventEntity();
+		event.setId(9L);
+		event.setEventId("evt-9");
+		event.setEventType("PAYMENT_SUCCEEDED");
+		event.setTopic("mall.payment.succeeded");
+		event.setMessageKey("ORD-DEAD-009");
+		event.setStatus(OutboxEventStatus.FAILED);
+		event.setRetryCount(4);
+		event.setPayload(objectMapper.valueToTree(new PaymentSucceededEvent(
+			"ORD-DEAD-009",
+			new BigDecimal("18.00"),
+			Instant.parse("2026-04-12T11:00:00Z")
+		)));
+
+		when(outboxEventRepository.findDispatchableBatch(any(), anyInt()))
+			.thenReturn(List.of(event));
+		when(kafkaTemplate.send(any(), any(), any()))
+			.thenThrow(new IllegalStateException("broker unavailable again"));
+
+		outboxEventDispatcher.dispatchPendingEvents();
+
+		verify(outboxEventRepository).updateDispatchResult(
+			org.mockito.ArgumentMatchers.eq(9L),
+			org.mockito.ArgumentMatchers.eq(OutboxEventStatus.DEAD),
+			org.mockito.ArgumentMatchers.eq(5),
+			org.mockito.ArgumentMatchers.isNull(),
+			org.mockito.ArgumentMatchers.eq("broker unavailable again"),
+			org.mockito.ArgumentMatchers.isNull()
 		);
 	}
 }

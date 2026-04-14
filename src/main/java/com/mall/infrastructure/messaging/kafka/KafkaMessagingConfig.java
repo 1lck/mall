@@ -31,6 +31,9 @@ import java.util.Map;
 @ConditionalOnProperty(name = "mall.kafka.enabled", havingValue = "true")
 public class KafkaMessagingConfig {
 
+	/**
+	 * 创建订单创建事件消费者工厂。
+	 */
 	@Bean
 	public ConsumerFactory<String, OrderCreatedEvent> orderCreatedConsumerFactory(KafkaProperties kafkaProperties) {
 		// 先把 Spring Boot 自动装配出来的 Kafka consumer 配置拿过来，
@@ -44,6 +47,9 @@ public class KafkaMessagingConfig {
 		return new DefaultKafkaConsumerFactory<>(consumerProperties, new StringDeserializer(), valueDeserializer);
 	}
 
+	/**
+	 * 创建订单创建事件监听器工厂。
+	 */
 	@Bean
 	public ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> orderCreatedKafkaListenerContainerFactory(
 		ConsumerFactory<String, OrderCreatedEvent> orderCreatedConsumerFactory
@@ -61,6 +67,9 @@ public class KafkaMessagingConfig {
 		return factory;
 	}
 
+	/**
+	 * 创建支付成功事件消费者工厂。
+	 */
 	@Bean
 	public ConsumerFactory<String, PaymentSucceededEvent> paymentSucceededConsumerFactory(KafkaProperties kafkaProperties) {
 		Map<String, Object> consumerProperties = new HashMap<>(kafkaProperties.buildConsumerProperties());
@@ -69,6 +78,9 @@ public class KafkaMessagingConfig {
 		return new DefaultKafkaConsumerFactory<>(consumerProperties, new StringDeserializer(), valueDeserializer);
 	}
 
+	/**
+	 * 创建支付成功事件监听器工厂。
+	 */
 	@Bean
 	public ConcurrentKafkaListenerContainerFactory<String, PaymentSucceededEvent> paymentSucceededKafkaListenerContainerFactory(
 		ConsumerFactory<String, PaymentSucceededEvent> paymentSucceededConsumerFactory
@@ -76,10 +88,14 @@ public class KafkaMessagingConfig {
 		ConcurrentKafkaListenerContainerFactory<String, PaymentSucceededEvent> factory =
 			new ConcurrentKafkaListenerContainerFactory<>();
 		factory.setConsumerFactory(paymentSucceededConsumerFactory);
+		// 支付成功事件也使用手动确认，便于后续扩展重试和补偿逻辑。
 		factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 		return factory;
 	}
 
+	/**
+	 * 确保订单创建事件 topic 在启动时存在。
+	 */
 	@Bean
 	public NewTopic orderCreatedTopic(KafkaTopicsProperties kafkaTopicsProperties) {
 		// 启动时自动确保 topic 存在，避免你第一次联调时还得手动创建主题。
@@ -90,6 +106,9 @@ public class KafkaMessagingConfig {
 			.build();
 	}
 
+	/**
+	 * 确保支付成功事件 topic 在启动时存在。
+	 */
 	@Bean
 	public NewTopic paymentSucceededTopic(KafkaTopicsProperties kafkaTopicsProperties) {
 		return TopicBuilder

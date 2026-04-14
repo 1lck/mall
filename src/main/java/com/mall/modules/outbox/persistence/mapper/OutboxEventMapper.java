@@ -22,6 +22,9 @@ import java.util.Optional;
 @Mapper
 public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
 
+	/**
+	 * 按主键是否为空决定插入还是更新 outbox 记录。
+	 */
 	default OutboxEventEntity save(OutboxEventEntity entity) {
 		// 和项目里其他 mapper 保持同一套 save 语义：
 		// id 为空时插入，否则按主键更新。
@@ -34,6 +37,9 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
 		return entity;
 	}
 
+	/**
+	 * 查询当前时刻可以投递的一批 outbox 事件。
+	 */
 	default List<OutboxEventEntity> findDispatchableBatch(Instant now, int limit) {
 		// 扫描器只捞“现在可以投递”的事件：
 		// - PENDING：首次待发送
@@ -53,6 +59,9 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
 		);
 	}
 
+	/**
+	 * 按主键查询单条 outbox 记录。
+	 */
 	default Optional<OutboxEventEntity> findById(Long id) {
 		return Optional.ofNullable(selectById(id));
 	}

@@ -28,24 +28,31 @@ import java.util.Optional;
 public class OutboxEventDispatcher {
 
 	private static final Logger log = LoggerFactory.getLogger(OutboxEventDispatcher.class);
+	/** 单次扫描允许投递的最大批次大小。 */
 	private static final int DISPATCH_BATCH_SIZE = 50;
-	private static final long RETRY_DELAY_SECONDS = 30L;
+	/** 当前支持反序列化的支付成功事件类型。 */
 	private static final String PAYMENT_SUCCEEDED_EVENT_TYPE = "PAYMENT_SUCCEEDED";
 
 	private final OutboxEventMapper outboxEventRepository;
 	private final KafkaTemplate<String, Object> kafkaTemplate;
 	private final ObjectMapper objectMapper;
+	private final OutboxRetryPolicy outboxRetryPolicy;
 
 	public OutboxEventDispatcher(
 		OutboxEventMapper outboxEventRepository,
 		KafkaTemplate<String, Object> kafkaTemplate,
-		ObjectMapper objectMapper
+		ObjectMapper objectMapper,
+		OutboxRetryPolicy outboxRetryPolicy
 	) {
 		this.outboxEventRepository = outboxEventRepository;
 		this.kafkaTemplate = kafkaTemplate;
 		this.objectMapper = objectMapper;
+		this.outboxRetryPolicy = outboxRetryPolicy;
 	}
 
+	/**
+	 * 定时扫描并投递待发送的 outbox 事件。
+	 */
 	@Scheduled(fixedDelayString = "${mall.outbox.dispatch-fixed-delay-ms:1000}")
 	public void dispatchPendingEvents() {
 		// 第一版先用最简单稳定的轮询模型：
@@ -57,6 +64,9 @@ public class OutboxEventDispatcher {
 		}
 	}
 
+	/**
+	 * 只投递指定 id 的 outbox 事件。
+	 */
 	public void dispatchEventById(Long outboxEventId) {
 		// 即时触发路径只关心当前这条 outbox 记录：
 		// 查到了就精确投递，查不到就直接结束，不再顺手扫描整批数据。
@@ -69,6 +79,9 @@ public class OutboxEventDispatcher {
 		dispatchSingleEvent(event);
 	}
 
+	/**
+	 * 执行单条 outbox 事件的实际投递。
+	 */
 	private void dispatchSingleEvent(OutboxEventEntity event) {
 		try {
 			// 真正的外部副作用只发生在这里：
@@ -80,6 +93,9 @@ public class OutboxEventDispatcher {
 		}
 	}
 
+	/**
+	 * 把 outbox 记录里的通用 JSON 还原成具体 Kafka 消息对象。
+	 */
 	private Object toKafkaPayload(OutboxEventEntity event) {
 		// outbox 表里只存通用 JSON，所以投递前要按 eventType 还原成具体消息对象。
 		// 目前先只接支付成功事件，后面订单事件也可以继续往这里扩。
@@ -90,6 +106,9 @@ public class OutboxEventDispatcher {
 		throw new IllegalArgumentException("Unsupported outbox event type: " + event.getEventType());
 	}
 
+	/**
+	 * 把 outbox 记录标记为发送成功。
+	 */
 	private void markSent(OutboxEventEntity event) {
 		// 发送成功后把这条记录标记为 SENT，
 		// 后续扫描时就不会再被重复捞出来。
@@ -110,25 +129,39 @@ public class OutboxEventDispatcher {
 		);
 	}
 
+	/**
+	 * 按重试策略回写发送失败结果。
+	 */
 	private void markFailed(OutboxEventEntity event, Exception exception) {
-		// 第一版先用固定退避时间：
-		// 发失败就进入 FAILED，并约定 30 秒后再重试一次。
-		int nextRetryCount = event.getRetryCount() == null ? 1 : event.getRetryCount() + 1;
-		Instant nextRetryAt = Instant.now().plusSeconds(RETRY_DELAY_SECONDS);
+		// 发送失败后，统一交给重试策略决定：
+		// 是继续进入 FAILED 等待下次重试，还是进入 DEAD 停止自动重试。
+		OutboxRetryPlan retryPlan = outboxRetryPolicy.planFailure(event.getRetryCount(), Instant.now(), exception.getMessage());
 		outboxEventRepository.updateDispatchResult(
 			event.getId(),
-			OutboxEventStatus.FAILED,
-			nextRetryCount,
-			nextRetryAt,
-			exception.getMessage(),
+			retryPlan.status(),
+			retryPlan.retryCount(),
+			retryPlan.nextRetryAt(),
+			retryPlan.lastError(),
 			null
 		);
+		if (retryPlan.status() == OutboxEventStatus.DEAD) {
+			log.error(
+				"Outbox event dispatch reached max retry count and moved to DEAD: eventId={}, eventType={}, retryCount={}, message={}",
+				event.getEventId(),
+				event.getEventType(),
+				retryPlan.retryCount(),
+				retryPlan.lastError()
+			);
+			return;
+		}
+
 		log.warn(
-			"Outbox event dispatch failed and will retry later: eventId={}, eventType={}, retryCount={}, message={}",
+			"Outbox event dispatch failed and will retry later: eventId={}, eventType={}, retryCount={}, nextRetryAt={}, message={}",
 			event.getEventId(),
 			event.getEventType(),
-			nextRetryCount,
-			exception.getMessage()
+			retryPlan.retryCount(),
+			retryPlan.nextRetryAt(),
+			retryPlan.lastError()
 		);
 	}
 }

@@ -8,5 +8,8 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface ProductImageApplicationService {
 
+	/**
+	 * 上传商品图片并返回可访问地址。
+	 */
 	ProductImageUploadVO uploadImage(MultipartFile file);
 }

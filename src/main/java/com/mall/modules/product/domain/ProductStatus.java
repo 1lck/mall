@@ -4,8 +4,11 @@ package com.mall.modules.product.domain;
  * 商品状态枚举。
  */
 public enum ProductStatus {
+	/** 草稿状态，尚未对外销售。 */
 	DRAFT,
+	/** 在售状态。 */
 	ON_SALE,
+	/** 已下架状态。 */
 	OFF_SHELF;
 
 	/**

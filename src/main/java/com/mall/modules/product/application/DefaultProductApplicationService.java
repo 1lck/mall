@@ -34,6 +34,9 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 		this.productRepository = productRepository;
 	}
 
+	/**
+	 * 创建商品。
+	 */
 	@Override
 	public ProductVO createProduct(CreateProductDTO request) {
 		// 第一版先直接在服务层组装商品对象，后续拆更复杂的领域逻辑也方便演进。
@@ -50,12 +53,18 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 		return toResponse(productRepository.save(product));
 	}
 
+	/**
+	 * 读取单个商品详情。
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public ProductVO getProduct(Long id) {
 		return toResponse(getProductEntity(id));
 	}
 
+	/**
+	 * 返回商品列表。
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public List<ProductVO> listProducts() {
@@ -66,6 +75,9 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 			.toList();
 	}
 
+	/**
+	 * 更新商品可编辑字段，并校验状态流转是否合法。
+	 */
 	@Override
 	public ProductVO updateProduct(Long id, UpdateProductDTO request) {
 		// 更新前先查原商品，找不到就直接抛业务异常。
@@ -82,6 +94,9 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 		return toResponse(productRepository.save(product));
 	}
 
+	/**
+	 * 删除指定商品。
+	 */
 	@Override
 	public void deleteProduct(Long id) {
 		// 当前先做硬删除，后续如果需要回收站再改成软删除。
@@ -89,12 +104,18 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 		productRepository.delete(product);
 	}
 
+	/**
+	 * 读取商品实体，并统一处理商品不存在的情况。
+	 */
 	private ProductEntity getProductEntity(Long id) {
 		// 把“查不到商品”的判断收口到一个地方，避免每个方法重复判空。
 		return productRepository.findById(id)
 			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Product " + id + " was not found"));
 	}
 
+	/**
+	 * 校验商品状态是否允许流转到目标状态。
+	 */
 	private void validateStatusTransition(ProductStatus currentStatus, ProductStatus targetStatus) {
 		// 状态流转规则统一收口在服务层，避免接口层直接把任意状态写进数据库。
 		if (!currentStatus.canTransitionTo(targetStatus)) {
@@ -105,6 +126,9 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 		}
 	}
 
+	/**
+	 * 把商品实体转换成接口响应对象。
+	 */
 	private ProductVO toResponse(ProductEntity product) {
 		// persistence 层对象不直接返回给前端，这里统一转换成接口响应对象。
 		return new ProductVO(
@@ -122,6 +146,9 @@ public class DefaultProductApplicationService implements ProductApplicationServi
 		);
 	}
 
+	/**
+	 * 生成商品编号。
+	 */
 	private String generateProductNo() {
 		// 用时间戳加随机片段生成商品编号，当前练手项目场景已经够用。
 		return "PRD" + PRODUCT_NO_TIME_FORMATTER.format(Instant.now())

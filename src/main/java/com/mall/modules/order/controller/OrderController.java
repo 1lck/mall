@@ -36,6 +36,9 @@ public class OrderController {
 		this.orderApplicationService = orderApplicationService;
 	}
 
+	/**
+	 * 创建一笔新订单。
+	 */
 	@PostMapping
 	@Operation(summary = "Create order", description = "Creates a new order and returns the persisted result.")
 	public ResponseEntity<ApiResponse<OrderVO>> createOrder(
@@ -47,18 +50,27 @@ public class OrderController {
 			.body(ApiResponse.success(orderApplicationService.createOrder(readCurrentUserId(jwt), request)));
 	}
 
+	/**
+	 * 读取指定订单详情。
+	 */
 	@GetMapping("/{id}")
 	@Operation(summary = "Get order by id", description = "Reads a single order by its primary key.")
 	public ApiResponse<OrderVO> getOrder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
 		return ApiResponse.success(orderApplicationService.getOrder(readCurrentUserId(jwt), isAdmin(jwt), id));
 	}
 
+	/**
+	 * 返回当前用户可见的订单列表。
+	 */
 	@GetMapping
 	@Operation(summary = "List orders", description = "Returns all orders ordered by id descending.")
 	public ApiResponse<List<OrderVO>> listOrders(@AuthenticationPrincipal Jwt jwt) {
 		return ApiResponse.success(orderApplicationService.listOrders(readCurrentUserId(jwt), isAdmin(jwt)));
 	}
 
+	/**
+	 * 更新订单可编辑字段。
+	 */
 	@PutMapping("/{id}")
 	@Operation(summary = "Update order", description = "Updates editable fields of an existing order.")
 	public ApiResponse<OrderVO> updateOrder(
@@ -69,6 +81,9 @@ public class OrderController {
 		return ApiResponse.success(orderApplicationService.updateOrder(readCurrentUserId(jwt), isAdmin(jwt), id, request));
 	}
 
+	/**
+	 * 删除指定订单。
+	 */
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete order", description = "Deletes an order by id.")
 	public ApiResponse<String> deleteOrder(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
@@ -77,6 +92,9 @@ public class OrderController {
 		return ApiResponse.success("deleted");
 	}
 
+	/**
+	 * 从 JWT 中读取当前登录用户 id。
+	 */
 	private Long readCurrentUserId(Jwt jwt) {
 		Object claim = jwt.getClaims().get("uid");
 		if (claim instanceof Number number) {
@@ -86,6 +104,9 @@ public class OrderController {
 		throw new IllegalStateException("JWT does not contain a valid uid claim");
 	}
 
+	/**
+	 * 判断当前登录用户是否是管理员。
+	 */
 	private boolean isAdmin(Jwt jwt) {
 		return "ADMIN".equals(jwt.getClaimAsString("role"));
 	}

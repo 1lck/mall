@@ -27,7 +27,9 @@ import java.util.UUID;
 public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
 
 	private static final Logger log = LoggerFactory.getLogger(KafkaPaymentEventPublisher.class);
+	/** Outbox 记录使用的聚合类型。 */
 	private static final String AGGREGATE_TYPE = "PAYMENT";
+	/** 支付成功事件类型标识。 */
 	private static final String EVENT_TYPE = "PAYMENT_SUCCEEDED";
 
 	private final KafkaTopicsProperties kafkaTopicsProperties;
@@ -47,6 +49,9 @@ public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
 		this.objectMapper = objectMapper;
 	}
 
+	/**
+	 * 把支付成功事件写入 outbox，并触发一次精确投递请求。
+	 */
 	@Override
 	public void publishPaymentSucceeded(PaymentSucceededEvent event) {
 		String topic = kafkaTopicsProperties.getTopics().getPaymentSucceeded();

@@ -32,14 +32,19 @@ public class SystemController {
 		this.kafkaTopicsProperties = kafkaTopicsProperties;
 	}
 
+	/**
+	 * 返回最基础的存活探针结果。
+	 */
 	@GetMapping("/ping")
-	// 这类 Swagger 注解主要是为了让文档页面更容易读。
 	@Operation(summary = "Ping the service", description = "Returns a simple pong response to confirm the web layer is alive.")
 	public ApiResponse<String> ping() {
 		// 最简单的探针接口，只要能返回就说明 Web 层已经工作。
 		return ApiResponse.success("pong");
 	}
 
+	/**
+	 * 返回系统模块和 Kafka 配置的概览信息。
+	 */
 	@GetMapping("/overview")
 	@Operation(summary = "Read system overview", description = "Returns enabled modules and the current Kafka-related configuration.")
 	public ApiResponse<SystemOverviewResponse> overview() {

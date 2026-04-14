@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderCreatedLoggingConsumer {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderCreatedLoggingConsumer.class);
+	/** 订单创建事件的幂等处理标识。 */
 	private static final String ORDER_CREATED_EVENT_TYPE = "ORDER_CREATED";
 	private final OrderEventRecordMapper orderEventRecordRepository;
 	private final PaymentRecordMapper paymentRecordRepository;
@@ -37,6 +38,9 @@ public class OrderCreatedLoggingConsumer {
 		this.paymentRecordRepository = paymentRecordRepository;
 	}
 
+	/**
+	 * 消费订单创建事件，并为订单生成一条待支付记录。
+	 */
 	@KafkaListener(
 		topics = "${mall.kafka.topics.order-created}",
 		groupId = "${mall.kafka.consumer-group}",

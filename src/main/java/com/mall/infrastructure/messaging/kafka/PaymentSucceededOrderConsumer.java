@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentSucceededOrderConsumer {
 
 	private static final Logger log = LoggerFactory.getLogger(PaymentSucceededOrderConsumer.class);
+	/** 支付成功事件的幂等处理标识。 */
 	private static final String PAYMENT_SUCCEEDED_EVENT_TYPE = "PAYMENT_SUCCEEDED";
 
 	private final OrderMapper orderRepository;
@@ -36,6 +37,9 @@ public class PaymentSucceededOrderConsumer {
 		this.orderEventRecordRepository = orderEventRecordRepository;
 	}
 
+	/**
+	 * 消费支付成功事件，并把对应订单标记为已支付。
+	 */
 	@KafkaListener(
 		topics = "${mall.kafka.topics.payment-succeeded}",
 		groupId = "${mall.kafka.consumer-group}",
@@ -83,6 +87,9 @@ public class PaymentSucceededOrderConsumer {
 		}
 	}
 
+	/**
+	 * 校验订单状态是否允许流转到目标状态。
+	 */
 	private void validateOrderStatusTransition(OrderStatus currentStatus, OrderStatus targetStatus) {
 		if (!currentStatus.canTransitionTo(targetStatus)) {
 			throw new BusinessException(

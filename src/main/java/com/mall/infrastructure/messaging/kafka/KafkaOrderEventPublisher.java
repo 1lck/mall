@@ -34,6 +34,9 @@ public class KafkaOrderEventPublisher implements OrderEventPublisher {
 		this.kafkaTopicsProperties = kafkaTopicsProperties;
 	}
 
+	/**
+	 * 发布订单创建事件，若当前存在事务则延后到事务提交后发送。
+	 */
 	@Override
 	public void publishOrderCreated(OrderCreatedEvent event) {
 		if (TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -49,6 +52,9 @@ public class KafkaOrderEventPublisher implements OrderEventPublisher {
 		doSend(event);
 	}
 
+	/**
+	 * 把订单事件真正发送到 Kafka。
+	 */
 	private void doSend(OrderCreatedEvent event) {
 		String topic = kafkaTopicsProperties.getTopics().getOrderCreated();
 		kafkaTemplate.send(topic, event.orderNo(), event);

@@ -33,6 +33,9 @@ public class DefaultPaymentApplicationService implements PaymentApplicationServi
 		this.paymentEventPublisher = paymentEventPublisher;
 	}
 
+	/**
+	 * 把指定订单的支付记录流转到支付成功状态，并发布支付成功事件。
+	 */
 	@Override
 	public void markPaymentSuccess(String orderNo) {
 		// 先查支付记录，查不到说明这笔订单还没创建支付任务。
@@ -54,6 +57,9 @@ public class DefaultPaymentApplicationService implements PaymentApplicationServi
 		));
 	}
 
+	/**
+	 * 校验支付状态是否允许流转到目标状态。
+	 */
 	private void validateStatusTransition(PaymentStatus currentStatus, PaymentStatus targetStatus) {
 		if (!currentStatus.canTransitionTo(targetStatus)) {
 			throw new BusinessException(

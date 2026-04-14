@@ -19,6 +19,7 @@ import java.util.List;
 @Configuration
 public class WebCorsConfig implements WebMvcConfigurer {
 
+	/** 本地开发环境允许跨域访问的来源模式集合。 */
 	private static final List<String> ALLOWED_ORIGIN_PATTERNS = List.of(
 		"http://localhost:[*]",
 		"http://127.0.0.1:[*]",
@@ -42,6 +43,9 @@ public class WebCorsConfig implements WebMvcConfigurer {
 		"http://172.31.*.*:[*]"
 	);
 
+	/**
+	 * 为 MVC 请求映射注册跨域规则。
+	 */
 	@Override
 	public void addCorsMappings(CorsRegistry registry) {
 		registry.addMapping("/api/**")
@@ -52,6 +56,9 @@ public class WebCorsConfig implements WebMvcConfigurer {
 			.maxAge(3600);
 	}
 
+	/**
+	 * 为 Spring Security 链路提供同一套跨域配置。
+	 */
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();

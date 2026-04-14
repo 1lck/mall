@@ -22,18 +22,27 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+	/**
+	 * 处理业务异常并转换成统一响应结构。
+	 */
 	@ExceptionHandler(BusinessException.class)
 	public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
 		return ResponseEntity.status(resolveHttpStatus(exception.getErrorCode()))
 			.body(ApiResponse.failure(exception.getErrorCode(), exception.getMessage()));
 	}
 
+	/**
+	 * 处理静态资源或接口路径不存在的情况。
+	 */
 	@ExceptionHandler(NoResourceFoundException.class)
 	public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(NoResourceFoundException exception) {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND)
 			.body(ApiResponse.failure(ErrorCode.NOT_FOUND, exception.getMessage()));
 	}
 
+	/**
+	 * 处理请求体参数校验失败的情况。
+	 */
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValidException(
 		MethodArgumentNotValidException exception
@@ -49,6 +58,9 @@ public class GlobalExceptionHandler {
 			.body(ApiResponse.failure(ErrorCode.BAD_REQUEST, message));
 	}
 
+	/**
+	 * 处理路径参数、查询参数等约束校验失败的情况。
+	 */
 	@ExceptionHandler(ConstraintViolationException.class)
 	public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(
 		ConstraintViolationException exception
@@ -57,6 +69,9 @@ public class GlobalExceptionHandler {
 			.body(ApiResponse.failure(ErrorCode.BAD_REQUEST, exception.getMessage()));
 	}
 
+	/**
+	 * 处理未被显式捕获的兜底异常。
+	 */
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ApiResponse<Void>> handleException(Exception exception) {
 		// 兜底异常处理，避免出现原始报错页面或未包装的栈信息。
@@ -64,10 +79,16 @@ public class GlobalExceptionHandler {
 			.body(ApiResponse.failure(ErrorCode.INTERNAL_ERROR, exception.getMessage()));
 	}
 
+	/**
+	 * 把字段校验错误格式化成更适合前端直接展示的文本。
+	 */
 	private String formatFieldError(FieldError fieldError) {
 		return fieldError.getField() + " " + fieldError.getDefaultMessage();
 	}
 
+	/**
+	 * 根据统一错误码推导要返回的 HTTP 状态码。
+	 */
 	private HttpStatus resolveHttpStatus(ErrorCode errorCode) {
 		return switch (errorCode) {
 			case BAD_REQUEST -> HttpStatus.BAD_REQUEST;

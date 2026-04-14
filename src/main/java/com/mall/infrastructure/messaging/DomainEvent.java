@@ -8,5 +8,8 @@ package com.mall.infrastructure.messaging;
  */
 public interface DomainEvent {
 
+	/**
+	 * 返回事件类型标识，用于消息路由和反序列化识别。
+	 */
 	String type();
 }

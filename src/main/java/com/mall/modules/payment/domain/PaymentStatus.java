@@ -7,8 +7,11 @@ package com.mall.modules.payment.domain;
  * 方便后面继续扩展支付成功、支付失败等流程。</p>
  */
 public enum PaymentStatus {
+	/** 已创建支付记录，等待完成支付。 */
 	PENDING,
+	/** 支付已成功完成。 */
 	SUCCESS,
+	/** 支付失败。 */
 	FAILED;
 
 	/**

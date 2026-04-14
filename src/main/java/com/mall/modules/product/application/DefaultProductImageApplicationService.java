@@ -26,6 +26,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class DefaultProductImageApplicationService implements ProductImageApplicationService {
 
+	/** 公开读 bucket 策略模板。 */
 	private static final String PUBLIC_READ_BUCKET_POLICY_TEMPLATE = """
 		{
 		  "Version":"2012-10-17",
@@ -48,6 +49,9 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 		this.minioProperties = minioProperties;
 	}
 
+	/**
+	 * 上传商品图片到 MinIO，并返回对象 key 和访问地址。
+	 */
 	@Override
 	public ProductImageUploadVO uploadImage(MultipartFile file) {
 		validateImageFile(file);
@@ -73,6 +77,9 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 		return new ProductImageUploadVO(objectKey, buildImageUrl(objectKey));
 	}
 
+	/**
+	 * 校验上传文件是否为有效图片。
+	 */
 	private void validateImageFile(MultipartFile file) {
 		// 先做最基础的文件校验，避免把空文件或非图片内容写进对象存储。
 		if (file == null || file.isEmpty()) {
@@ -85,6 +92,9 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 		}
 	}
 
+	/**
+	 * 确保图片 bucket 已存在且具备公开读策略。
+	 */
 	private void ensureBucketReady() {
 		try {
 			boolean bucketExists = minioClient.bucketExists(
@@ -110,6 +120,9 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 		}
 	}
 
+	/**
+	 * 生成对象存储里的文件路径。
+	 */
 	private String buildObjectKey(String originalFilename) {
 		LocalDate today = LocalDate.now();
 		String extension = resolveExtension(originalFilename);
@@ -124,6 +137,9 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 		);
 	}
 
+	/**
+	 * 提取原始文件扩展名，缺失时回退为二进制扩展名。
+	 */
 	private String resolveExtension(String originalFilename) {
 		if (originalFilename == null || !originalFilename.contains(".")) {
 			return ".bin";
@@ -132,11 +148,17 @@ public class DefaultProductImageApplicationService implements ProductImageApplic
 		return originalFilename.substring(originalFilename.lastIndexOf('.')).toLowerCase(Locale.ROOT);
 	}
 
+	/**
+	 * 拼装图片的最终访问地址。
+	 */
 	private String buildImageUrl(String objectKey) {
 		String publicBaseUrl = trimTrailingSlash(minioProperties.getPublicBaseUrl());
 		return publicBaseUrl + "/" + minioProperties.getBucket() + "/" + objectKey;
 	}
 
+	/**
+	 * 去掉地址末尾的斜杠，避免拼接 URL 时出现双斜杠。
+	 */
 	private String trimTrailingSlash(String value) {
 		if (value == null || value.isBlank()) {
 			return trimTrailingSlash(minioProperties.getEndpoint());

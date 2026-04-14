@@ -34,6 +34,9 @@ public class ProductController {
 		this.productApplicationService = productApplicationService;
 	}
 
+	/**
+	 * 创建商品。
+	 */
 	@PostMapping
 	@Operation(summary = "Create product", description = "Creates a new product and returns the persisted result.")
 	public ResponseEntity<ApiResponse<ProductVO>> createProduct(
@@ -44,18 +47,27 @@ public class ProductController {
 			.body(ApiResponse.success(productApplicationService.createProduct(request)));
 	}
 
+	/**
+	 * 读取单个商品详情。
+	 */
 	@GetMapping("/{id}")
 	@Operation(summary = "Get product by id", description = "Reads a single product by its primary key.")
 	public ApiResponse<ProductVO> getProduct(@PathVariable Long id) {
 		return ApiResponse.success(productApplicationService.getProduct(id));
 	}
 
+	/**
+	 * 返回商品列表。
+	 */
 	@GetMapping
 	@Operation(summary = "List products", description = "Returns all products ordered by id descending.")
 	public ApiResponse<List<ProductVO>> listProducts() {
 		return ApiResponse.success(productApplicationService.listProducts());
 	}
 
+	/**
+	 * 更新商品可编辑字段。
+	 */
 	@PutMapping("/{id}")
 	@Operation(summary = "Update product", description = "Updates editable fields of an existing product.")
 	public ApiResponse<ProductVO> updateProduct(
@@ -65,6 +77,9 @@ public class ProductController {
 		return ApiResponse.success(productApplicationService.updateProduct(id, request));
 	}
 
+	/**
+	 * 删除指定商品。
+	 */
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Delete product", description = "Deletes a product by id.")
 	public ApiResponse<String> deleteProduct(@PathVariable Long id) {

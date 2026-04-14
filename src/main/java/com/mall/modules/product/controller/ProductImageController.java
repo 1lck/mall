@@ -25,6 +25,9 @@ public class ProductImageController {
 		this.productImageApplicationService = productImageApplicationService;
 	}
 
+	/**
+	 * 上传商品图片。
+	 */
 	@PostMapping("/upload")
 	@Operation(summary = "Upload product image", description = "Uploads an image to MinIO and returns the public URL.")
 	public ApiResponse<ProductImageUploadVO> uploadProductImage(@RequestParam("file") MultipartFile file) {

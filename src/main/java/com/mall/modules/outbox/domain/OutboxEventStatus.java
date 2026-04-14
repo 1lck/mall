@@ -11,5 +11,7 @@ public enum OutboxEventStatus {
 	// 已经成功投递到 Kafka，不需要再扫描。
 	SENT,
 	// 上一次投递失败，等 nextRetryAt 到点后再尝试。
-	FAILED
+	FAILED,
+	// 已达到最大重试次数，不再自动重试，等待人工介入。
+	DEAD
 }

@@ -14,12 +14,15 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
+	/**
+	 * 定义 OpenAPI 文档首页展示的基础信息。
+	 */
 	@Bean
 	public OpenAPI mallOpenAPI() {
 		// 这里定义的是文档首页顶部展示的标题、描述和版本号。
 		return new OpenAPI().info(new Info()
 			.title("Mall API")
-			.description("Knife4j documentation for the mall backend practice project.")
+			.description("商城后端练习项目的接口文档。")
 			.version("v1"));
 	}
 }

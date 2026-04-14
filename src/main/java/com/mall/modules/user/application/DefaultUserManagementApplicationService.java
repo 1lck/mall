@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * 默认后台用户管理服务，负责管理员侧的用户列表、创建和状态更新。
+ */
 @Service
 @Transactional
 public class DefaultUserManagementApplicationService implements UserManagementApplicationService {
@@ -27,6 +30,9 @@ public class DefaultUserManagementApplicationService implements UserManagementAp
 		this.passwordEncoder = passwordEncoder;
 	}
 
+	/**
+	 * 查询后台用户列表，并统一转换成后台展示对象。
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public List<UserAdminVO> listUsers() {
@@ -36,13 +42,18 @@ public class DefaultUserManagementApplicationService implements UserManagementAp
 			.toList();
 	}
 
+	/**
+	 * 创建后台维护的用户账号。
+	 */
 	@Override
 	public UserAdminVO createUser(CreateUserDTO request) {
+		// 用户名在后台创建时也要先归一化，避免不同入口产生重复账号。
 		String username = normalizeUsername(request.username());
 		if (userRepository.existsByUsername(username)) {
 			throw new BusinessException(ErrorCode.BAD_REQUEST, "用户名已存在，请更换一个。");
 		}
 
+		// 创建账号时统一加密密码，并默认给出启用状态。
 		UserEntity user = new UserEntity();
 		user.setUsername(username);
 		user.setNickname(request.nickname().trim());
@@ -53,6 +64,9 @@ public class DefaultUserManagementApplicationService implements UserManagementAp
 		return toResponse(userRepository.save(user));
 	}
 
+	/**
+	 * 更新指定用户的状态，例如启用或停用。
+	 */
 	@Override
 	public UserAdminVO updateUserStatus(Long id, UpdateUserStatusDTO request) {
 		UserEntity user = userRepository.findById(id)
@@ -61,6 +75,9 @@ public class DefaultUserManagementApplicationService implements UserManagementAp
 		return toResponse(userRepository.save(user));
 	}
 
+	/**
+	 * 把用户实体转换成后台管理页需要的返回对象。
+	 */
 	private UserAdminVO toResponse(UserEntity user) {
 		return new UserAdminVO(
 			user.getId(),
@@ -73,6 +90,9 @@ public class DefaultUserManagementApplicationService implements UserManagementAp
 		);
 	}
 
+	/**
+	 * 统一整理用户名格式，避免大小写和空格差异。
+	 */
 	private String normalizeUsername(String username) {
 		return username.trim().toLowerCase(Locale.ROOT);
 	}

@@ -15,6 +15,9 @@ public final class KafkaAcknowledgmentSupport {
 	private KafkaAcknowledgmentSupport() {
 	}
 
+	/**
+	 * 把 Kafka 手动确认动作延后到事务提交之后执行。
+	 */
 	public static void acknowledgeAfterCommit(Acknowledgment acknowledgment) {
 		// 当前如果正处在 Spring 管理的数据库事务里，
 		// 就不要立刻 ack，而是把 ack 这个动作挂到 afterCommit 回调里。

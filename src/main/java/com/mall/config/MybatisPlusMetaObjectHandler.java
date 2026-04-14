@@ -12,6 +12,9 @@ import java.time.Instant;
 @Component
 public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
 
+	/**
+	 * 在插入时自动补齐常用审计字段。
+	 */
 	@Override
 	public void insertFill(MetaObject metaObject) {
 		Instant now = Instant.now();
@@ -20,11 +23,17 @@ public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
 		fillIfPresent(metaObject, "processedAt", now);
 	}
 
+	/**
+	 * 在更新时自动刷新更新时间。
+	 */
 	@Override
 	public void updateFill(MetaObject metaObject) {
 		fillIfPresent(metaObject, "updatedAt", Instant.now());
 	}
 
+	/**
+	 * 仅在字段存在且当前值为空时写入默认值。
+	 */
 	private void fillIfPresent(MetaObject metaObject, String fieldName, Instant value) {
 		if (!metaObject.hasSetter(fieldName) || getFieldValByName(fieldName, metaObject) != null) {
 			return;

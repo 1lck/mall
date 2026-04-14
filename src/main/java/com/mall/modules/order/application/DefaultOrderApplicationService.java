@@ -47,6 +47,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		this.orderEventPublisher = orderEventPublisher;
 	}
 
+	/**
+	 * 创建订单，并在订单持久化成功后发布订单创建事件。
+	 */
 	@Override
 	public OrderVO createOrder(Long currentUserId, CreateOrderDTO request) {
 		// 下单主流程：
@@ -88,6 +91,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		return toResponse(savedOrder);
 	}
 
+	/**
+	 * 读取单笔订单详情，并按当前用户权限控制可见范围。
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public OrderVO getOrder(Long currentUserId, boolean isAdmin, Long id) {
@@ -95,6 +101,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		return toResponse(getOrderEntity(currentUserId, isAdmin, id));
 	}
 
+	/**
+	 * 查询订单列表，管理员可见全部订单，普通用户仅可见自己的订单。
+	 */
 	@Override
 	@Transactional(readOnly = true)
 	public List<OrderVO> listOrders(Long currentUserId, boolean isAdmin) {
@@ -111,6 +120,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 			.toList();
 	}
 
+	/**
+	 * 更新订单可编辑字段，并校验状态流转是否合法。
+	 */
 	@Override
 	public OrderVO updateOrder(Long currentUserId, boolean isAdmin, Long id, UpdateOrderDTO request) {
 		// 更新订单允许修改的字段，并在这里统一校验状态流转是否合法。
@@ -124,6 +136,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		return toResponse(orderRepository.save(order));
 	}
 
+	/**
+	 * 删除指定订单。
+	 */
 	@Override
 	public void deleteOrder(Long currentUserId, boolean isAdmin, Long id) {
 		// 删除订单入口，目前是硬删除，权限控制仍然复用统一的订单读取逻辑。
@@ -132,6 +147,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		orderRepository.delete(order);
 	}
 
+	/**
+	 * 按权限读取订单实体，并统一处理订单不存在的情况。
+	 */
 	private OrderEntity getOrderEntity(Long currentUserId, boolean isAdmin, Long id) {
 		// 统一的订单读取方法：
 		// 同时收口“按权限查订单”和“订单不存在时抛业务异常”这两件事。
@@ -147,6 +165,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		return orderOptional.get();
 	}
 
+	/**
+	 * 校验订单状态是否允许流转到目标状态。
+	 */
 	private void validateStatusTransition(OrderStatus currentStatus, OrderStatus targetStatus) {
 		// 订单状态机校验：
 		// 防止接口层把不合法的状态直接写进数据库。
@@ -159,6 +180,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		}
 	}
 
+	/**
+	 * 把订单实体转换成接口响应对象。
+	 */
 	private OrderVO toResponse(OrderEntity order) {
 		// 把数据库实体转换成接口响应对象，避免 controller 直接暴露 persistence 层模型。
 		// persistence 层对象不直接返回给前端，这里统一转换成接口响应对象。
@@ -176,6 +200,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		);
 	}
 
+	/**
+	 * 读取下单所需的商品实体，并统一处理商品不存在的场景。
+	 */
 	private ProductEntity getProductEntity(Long productId) {
 		// 统一的商品读取方法：
 		// 下单时只要依赖商品，就都从这里处理“商品不存在”的判断。
@@ -190,6 +217,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		return productOptional.get();
 	}
 
+	/**
+	 * 校验库存是否足够支持当前下单数量。
+	 */
 	private void validateStock(ProductEntity product, Integer quantity) {
 		// 库存校验：
 		// 当前同步扣减版本里，下单前先确保库存足够，库存不足就直接失败。
@@ -201,12 +231,18 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		}
 	}
 
+	/**
+	 * 计算订单总金额。
+	 */
 	private BigDecimal calculateOrderAmount(BigDecimal productPrice, Integer quantity) {
 		// 订单金额计算：
 		// 当前最小版本按“商品单价 * 数量”计算总金额。
 		return productPrice.multiply(BigDecimal.valueOf(quantity.longValue()));
 	}
 
+	/**
+	 * 把订单实体转换成订单创建事件。
+	 */
 	private OrderCreatedEvent toOrderCreatedEvent(OrderEntity order) {
 		// 把订单实体转换成消息事件对象，给后续 Kafka 链路使用。
 		// 这里把数据库实体转换成“发给 Kafka 的事件对象”。
@@ -222,6 +258,9 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 		);
 	}
 
+	/**
+	 * 生成订单编号。
+	 */
 	private String generateOrderNo() {
 		// 订单号生成器：
 		// 用时间戳 + 随机片段生成当前项目里够用的业务单号。

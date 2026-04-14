@@ -37,17 +37,25 @@ import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+/**
+ * Spring Security 配置，负责鉴权规则、JWT 编解码和统一错误响应。
+ */
 @Configuration
 public class SecurityConfig {
 
+	/** 安全相关日志输出器。 */
 	private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
+	/**
+	 * 构建系统使用的安全过滤链。
+	 */
 	@Bean
 	public SecurityFilterChain securityFilterChain(
 		HttpSecurity http,
 		ObjectMapper objectMapper,
 		Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter
 	) throws Exception {
+		// 这个项目使用无状态 JWT 鉴权，所以关闭 Session 并启用资源服务器模式。
 		http
 			.csrf(csrf -> csrf.disable())
 			.cors(Customizer.withDefaults())
@@ -94,21 +102,33 @@ public class SecurityConfig {
 		return http.build();
 	}
 
+	/**
+	 * 提供统一的密码加密器。
+	 */
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
 	}
 
+	/**
+	 * 根据配置中的密钥构建 JWT 解码器。
+	 */
 	@Bean
 	public JwtDecoder jwtDecoder(AuthJwtProperties properties) {
 		return NimbusJwtDecoder.withSecretKey(buildSecretKey(properties)).macAlgorithm(MacAlgorithm.HS256).build();
 	}
 
+	/**
+	 * 根据配置中的密钥构建 JWT 编码器。
+	 */
 	@Bean
 	public JwtEncoder jwtEncoder(AuthJwtProperties properties) {
 		return new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(buildSecretKey(properties)));
 	}
 
+	/**
+	 * 把 JWT 中的角色信息转换成 Spring Security 可识别的权限集合。
+	 */
 	@Bean
 	public Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {
 		return new Converter<>() {
@@ -117,6 +137,7 @@ public class SecurityConfig {
 				List<GrantedAuthority> authorities = new ArrayList<>();
 				String role = jwt.getClaimAsString("role");
 
+				// 只有令牌里明确带了角色时才注入权限，避免构造出无效角色。
 				if (role != null && !role.isBlank()) {
 					authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
 				}
@@ -126,6 +147,9 @@ public class SecurityConfig {
 		};
 	}
 
+	/**
+	 * 按统一响应格式向客户端写入认证或鉴权失败信息。
+	 */
 	private void writeErrorResponse(
 		jakarta.servlet.http.HttpServletResponse response,
 		ObjectMapper objectMapper,
@@ -138,10 +162,16 @@ public class SecurityConfig {
 		objectMapper.writeValue(response.getOutputStream(), ApiResponse.failure(errorCode, message));
 	}
 
+	/**
+	 * 把配置里的字符串密钥转换成 HMAC-SHA256 所需的 SecretKey。
+	 */
 	private SecretKey buildSecretKey(AuthJwtProperties properties) {
 		return new SecretKeySpec(properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
 	}
 
+	/**
+	 * 提取当前请求的用户名，用于日志输出。
+	 */
 	private String resolvePrincipalName(Principal principal) {
 		if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
 			return "anonymous";

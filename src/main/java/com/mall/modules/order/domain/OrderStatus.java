@@ -4,8 +4,11 @@ package com.mall.modules.order.domain;
  * 订单状态枚举。
  */
 public enum OrderStatus {
+	/** 已创建，等待支付。 */
 	CREATED,
+	/** 已支付，进入后续履约流程。 */
 	PAID,
+	/** 已取消，不再继续处理。 */
 	CANCELLED;
 
 	/**

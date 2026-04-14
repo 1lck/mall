@@ -16,6 +16,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class MallApplication {
 
+	/**
+	 * 启动整个商城后端应用。
+	 */
 	public static void main(String[] args) {
 		SpringApplication.run(MallApplication.class, args);
 	}

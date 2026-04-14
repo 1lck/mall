@@ -5,5 +5,8 @@ package com.mall.modules.payment.application;
  */
 public interface PaymentApplicationService {
 
+	/**
+	 * 把指定订单标记为支付成功。
+	 */
 	void markPaymentSuccess(String orderNo);
 }

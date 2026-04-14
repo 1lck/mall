@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
+/**
+ * 管理后台首页控制器，提供统计看板所需的聚合数据接口。
+ */
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")
 @Tag(name = "Admin Dashboard", description = "Admin dashboard statistics endpoints")
@@ -22,6 +25,9 @@ public class AdminDashboardController {
 		this.adminDashboardService = adminDashboardService;
 	}
 
+	/**
+	 * 返回管理后台首页看板数据。
+	 */
 	@GetMapping
 	@Operation(summary = "Read dashboard", description = "Returns summary statistics and trend data for the admin home page.")
 	public ApiResponse<AdminDashboardResponse> getDashboard(

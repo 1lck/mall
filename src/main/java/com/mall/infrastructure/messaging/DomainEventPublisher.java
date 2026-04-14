@@ -8,5 +8,8 @@ package com.mall.infrastructure.messaging;
  */
 public interface DomainEventPublisher {
 
+	/**
+	 * 发布一个领域事件到基础设施层。
+	 */
 	void publish(DomainEvent event);
 }
