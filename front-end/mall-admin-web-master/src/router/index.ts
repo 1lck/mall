@@ -64,6 +64,12 @@ export const asyncRouterMap: RouteRecordExt[] = [
         component: () => import('@/views/oms/order/index.vue'),
         meta: { title: '订单列表', icon: 'product-list' },
       },
+      {
+        path: 'outbox',
+        name: 'outbox',
+        component: () => import('@/views/oms/outbox/index.vue'),
+        meta: { title: '消息观察', icon: 'product-list' },
+      },
     ],
   },
   {

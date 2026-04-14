@@ -7,6 +7,7 @@ import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.annotations.Mapper;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -64,6 +65,29 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
 	 */
 	default Optional<OutboxEventEntity> findById(Long id) {
 		return Optional.ofNullable(selectById(id));
+	}
+
+	/**
+	 * 返回后台观察页需要的最近一批 outbox 记录。
+	 */
+	default List<OutboxEventEntity> findAdminList(OutboxEventStatus status, String keyword, int limit) {
+		return selectList(
+			Wrappers.<OutboxEventEntity>lambdaQuery()
+				.eq(status != null, OutboxEventEntity::getStatus, status)
+				.and(StringUtils.hasText(keyword), wrapper -> wrapper
+					.like(OutboxEventEntity::getEventId, keyword)
+					.or()
+					.like(OutboxEventEntity::getAggregateId, keyword)
+					.or()
+					.like(OutboxEventEntity::getEventType, keyword)
+					.or()
+					.like(OutboxEventEntity::getTopic, keyword)
+					.or()
+					.like(OutboxEventEntity::getMessageKey, keyword)
+				)
+				.orderByDesc(OutboxEventEntity::getCreatedAt)
+				.last("limit " + limit)
+		);
 	}
 
 	/**

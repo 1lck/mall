@@ -26,6 +26,9 @@ logging:
 mall:
   kafka:
     enabled: true
+  outbox:
+    debug:
+      enabled: true
   minio:
     # 本地默认连接刚刚起好的 MinIO 容器，后续部署时可以用环境变量覆盖。
     endpoint: ${MALL_MINIO_ENDPOINT:http://127.0.0.1:9000}
