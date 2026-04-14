@@ -1,6 +1,9 @@
 /** outbox 投递状态 */
 export type OutboxEventStatus = 'PENDING' | 'SENT' | 'FAILED' | 'DEAD'
 
+/** outbox 调试消息类型 */
+export type OutboxDebugEventType = 'SENT' | 'FAILED' | 'DEAD' | 'IMMEDIATE_FAIL'
+
 /** outbox 观察页记录 */
 export type OutboxEvent = {
   /** outbox 主键 */

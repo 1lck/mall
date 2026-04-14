@@ -3,6 +3,7 @@ package com.mall.modules.outbox.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.config.KafkaTopicsProperties;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
+import com.mall.modules.outbox.dto.OutboxDebugEventType;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -35,7 +37,7 @@ class OutboxDebugApplicationServiceTests {
 			outboxEventMapper,
 			outboxDispatchTrigger,
 			kafkaTopicsProperties,
-			new ObjectMapper()
+			new ObjectMapper().findAndRegisterModules()
 		);
 
 		when(outboxEventMapper.save(org.mockito.ArgumentMatchers.any(OutboxEventEntity.class)))
@@ -46,17 +48,61 @@ class OutboxDebugApplicationServiceTests {
 				}
 				return entity;
 			});
+		when(outboxEventMapper.findById(1L)).thenAnswer(invocation -> {
+			OutboxEventEntity entity = new OutboxEventEntity();
+			entity.setId(1L);
+			entity.setEventId("evt-immediate-fail");
+			entity.setAggregateType("PAYMENT");
+			entity.setAggregateId("ORD-DEMO-IMMEDIATE-FAIL");
+			entity.setEventType("DEBUG_UNSUPPORTED_EVENT");
+			entity.setTopic("mall.payment.succeeded");
+			entity.setMessageKey("ORD-DEMO-IMMEDIATE-FAIL");
+			entity.setStatus(OutboxEventStatus.FAILED);
+			entity.setRetryCount(1);
+			entity.setLastError("Unsupported outbox event type");
+			return Optional.of(entity);
+		});
 
 		List<OutboxEventAdminVO> result = service.createDemoBatch();
 
 		assertThat(result).hasSize(4);
 		assertThat(result).extracting(OutboxEventAdminVO::status)
-			.contains(OutboxEventStatus.SENT, OutboxEventStatus.FAILED, OutboxEventStatus.DEAD, OutboxEventStatus.PENDING);
+			.contains(OutboxEventStatus.SENT, OutboxEventStatus.FAILED, OutboxEventStatus.DEAD);
+		assertThat(result).filteredOn(item -> "DEBUG_UNSUPPORTED_EVENT".equals(item.eventType()))
+			.singleElement()
+			.extracting(OutboxEventAdminVO::status)
+			.isEqualTo(OutboxEventStatus.FAILED);
 
 		ArgumentCaptor<OutboxEventEntity> entityCaptor = ArgumentCaptor.forClass(OutboxEventEntity.class);
 		verify(outboxEventMapper, times(4)).save(entityCaptor.capture());
 		assertThat(entityCaptor.getAllValues()).extracting(OutboxEventEntity::getEventType)
 			.contains("PAYMENT_SUCCEEDED", "DEBUG_UNSUPPORTED_EVENT");
 		verify(outboxDispatchTrigger).requestDispatch(1L);
+	}
+
+	/**
+	 * 生成单条调试消息时，应允许外部指定聚合标识，便于固定断点调试目标。
+	 */
+	@Test
+	void shouldCreateSingleFailedEventWithCustomAggregateId() {
+		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
+		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		KafkaTopicsProperties kafkaTopicsProperties = new KafkaTopicsProperties();
+		kafkaTopicsProperties.getTopics().setPaymentSucceeded("mall.payment.succeeded");
+		OutboxDebugApplicationService service = new OutboxDebugApplicationService(
+			outboxEventMapper,
+			outboxDispatchTrigger,
+			kafkaTopicsProperties,
+			new ObjectMapper().findAndRegisterModules()
+		);
+
+		when(outboxEventMapper.save(org.mockito.ArgumentMatchers.any(OutboxEventEntity.class)))
+			.thenAnswer(invocation -> invocation.getArgument(0));
+
+		OutboxEventAdminVO result = service.createSingleEvent(OutboxDebugEventType.FAILED, "ORD-DEBUG-CUSTOM-001");
+
+		assertThat(result.aggregateId()).isEqualTo("ORD-DEBUG-CUSTOM-001");
+		assertThat(result.status()).isEqualTo(OutboxEventStatus.FAILED);
+		assertThat(result.lastError()).isEqualTo("模拟 Kafka 不可用，等待下次自动重试");
 	}
 }

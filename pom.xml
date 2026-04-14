@@ -53,7 +53,6 @@
 			<!-- PostgreSQL JDBC 驱动，Spring 创建数据源时会用到它。 -->
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
-			<scope>runtime</scope>
 		</dependency>
 		<dependency>
 			<!-- 用 Flyway 管理表结构，避免把建表逻辑散落到代码里。 -->

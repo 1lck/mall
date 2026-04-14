@@ -3,6 +3,7 @@ package com.mall.modules.outbox.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.config.KafkaTopicsProperties;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
+import com.mall.modules.outbox.dto.OutboxDebugEventType;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
@@ -73,11 +74,43 @@ public class OutboxDebugApplicationService {
 	}
 
 	/**
+	 * 按指定调试类型生成单条 outbox 消息。
+	 *
+	 * @param type 调试场景类型
+	 * @param aggregateId 可选聚合标识，为空时自动生成
+	 * @return 刚创建的单条调试消息
+	 */
+	public OutboxEventAdminVO createSingleEvent(OutboxDebugEventType type, String aggregateId) {
+		Instant now = Instant.now();
+		String resolvedAggregateId = resolveAggregateId(type, aggregateId);
+		if (type == OutboxDebugEventType.SENT) {
+			return createSentDemoEvent(now, resolvedAggregateId);
+		}
+		if (type == OutboxDebugEventType.FAILED) {
+			return createFailedDemoEvent(now, resolvedAggregateId);
+		}
+		if (type == OutboxDebugEventType.DEAD) {
+			return createDeadDemoEvent(now, resolvedAggregateId);
+		}
+		if (type == OutboxDebugEventType.IMMEDIATE_FAIL) {
+			return createImmediateFailDemoEvent(now, resolvedAggregateId);
+		}
+
+		throw new IllegalArgumentException("Unsupported debug event type: " + type);
+	}
+
+	/**
 	 * 构造一条已经投递成功的历史消息，方便页面观察 SENT 状态。
 	 */
 	private OutboxEventAdminVO createSentDemoEvent(Instant now) {
-		String orderNo = "ORD-DEMO-SENT-" + shortId();
-		OutboxEventEntity entity = buildPaymentEvent(orderNo, now.minusSeconds(120));
+		return createSentDemoEvent(now, "ORD-DEMO-SENT-" + shortId());
+	}
+
+	/**
+	 * 构造一条已经投递成功的历史消息，并允许指定聚合标识。
+	 */
+	private OutboxEventAdminVO createSentDemoEvent(Instant now, String aggregateId) {
+		OutboxEventEntity entity = buildPaymentEvent(aggregateId, now.minusSeconds(120));
 		entity.setStatus(OutboxEventStatus.SENT);
 		entity.setRetryCount(0);
 		entity.setSentAt(now.minusSeconds(90));
@@ -89,8 +122,14 @@ public class OutboxDebugApplicationService {
 	 * 构造一条待重试消息，方便观察 FAILED 与 nextRetryAt。
 	 */
 	private OutboxEventAdminVO createFailedDemoEvent(Instant now) {
-		String orderNo = "ORD-DEMO-FAILED-" + shortId();
-		OutboxEventEntity entity = buildPaymentEvent(orderNo, now.minusSeconds(60));
+		return createFailedDemoEvent(now, "ORD-DEMO-FAILED-" + shortId());
+	}
+
+	/**
+	 * 构造一条待重试消息，并允许指定聚合标识。
+	 */
+	private OutboxEventAdminVO createFailedDemoEvent(Instant now, String aggregateId) {
+		OutboxEventEntity entity = buildPaymentEvent(aggregateId, now.minusSeconds(60));
 		entity.setStatus(OutboxEventStatus.FAILED);
 		entity.setRetryCount(1);
 		entity.setNextRetryAt(now.plusSeconds(10));
@@ -103,8 +142,14 @@ public class OutboxDebugApplicationService {
 	 * 构造一条已经超过最大重试次数的死信消息。
 	 */
 	private OutboxEventAdminVO createDeadDemoEvent(Instant now) {
-		String orderNo = "ORD-DEMO-DEAD-" + shortId();
-		OutboxEventEntity entity = buildPaymentEvent(orderNo, now.minusSeconds(300));
+		return createDeadDemoEvent(now, "ORD-DEMO-DEAD-" + shortId());
+	}
+
+	/**
+	 * 构造一条死信消息，并允许指定聚合标识。
+	 */
+	private OutboxEventAdminVO createDeadDemoEvent(Instant now, String aggregateId) {
+		OutboxEventEntity entity = buildPaymentEvent(aggregateId, now.minusSeconds(300));
 		entity.setStatus(OutboxEventStatus.DEAD);
 		entity.setRetryCount(4);
 		entity.setLastError("模拟连续多次投递失败，已进入 DEAD");
@@ -119,16 +164,22 @@ public class OutboxDebugApplicationService {
 	 * 这样 afterCommit 或直接触发投递时会稳定抛错，便于你观察失败回写链路。</p>
 	 */
 	private OutboxEventAdminVO createImmediateFailDemoEvent(Instant now) {
-		String orderNo = "ORD-DEMO-IMMEDIATE-FAIL-" + shortId();
+		return createImmediateFailDemoEvent(now, "ORD-DEMO-IMMEDIATE-FAIL-" + shortId());
+	}
+
+	/**
+	 * 构造一条会被即时投递路径稳定打成失败的消息，并允许指定聚合标识。
+	 */
+	private OutboxEventAdminVO createImmediateFailDemoEvent(Instant now, String aggregateId) {
 		OutboxEventEntity entity = new OutboxEventEntity();
 		entity.setEventId(UUID.randomUUID().toString());
 		entity.setAggregateType(PAYMENT_AGGREGATE_TYPE);
-		entity.setAggregateId(orderNo);
+		entity.setAggregateId(aggregateId);
 		entity.setEventType(UNSUPPORTED_DEBUG_EVENT_TYPE);
 		entity.setTopic(kafkaTopicsProperties.getTopics().getPaymentSucceeded());
-		entity.setMessageKey(orderNo);
+		entity.setMessageKey(aggregateId);
 		entity.setPayload(objectMapper.createObjectNode()
-			.put("orderNo", orderNo)
+			.put("orderNo", aggregateId)
 			.put("message", "这是一条专门用于演示即时失败的调试消息"));
 		entity.setStatus(OutboxEventStatus.PENDING);
 		entity.setRetryCount(0);
@@ -137,6 +188,26 @@ public class OutboxDebugApplicationService {
 		return outboxEventMapper.findById(entity.getId())
 			.map(this::toAdminVO)
 			.orElseGet(() -> toAdminVO(entity));
+	}
+
+	/**
+	 * 规范化外部传入的聚合标识，空值时按不同调试类型自动生成。
+	 */
+	private String resolveAggregateId(OutboxDebugEventType type, String aggregateId) {
+		if (aggregateId != null && !aggregateId.isBlank()) {
+			return aggregateId.trim();
+		}
+
+		if (type == OutboxDebugEventType.SENT) {
+			return "ORD-DEMO-SENT-" + shortId();
+		}
+		if (type == OutboxDebugEventType.FAILED) {
+			return "ORD-DEMO-FAILED-" + shortId();
+		}
+		if (type == OutboxDebugEventType.DEAD) {
+			return "ORD-DEMO-DEAD-" + shortId();
+		}
+		return "ORD-DEMO-IMMEDIATE-FAIL-" + shortId();
 	}
 
 	/**

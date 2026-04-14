@@ -2,6 +2,8 @@ package com.mall.modules.outbox.controller;
 
 import com.mall.common.api.ApiResponse;
 import com.mall.modules.outbox.application.OutboxDebugApplicationService;
+import com.mall.modules.outbox.dto.CreateOutboxDebugEventDTO;
+import com.mall.modules.outbox.dto.OutboxDebugEventType;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
 import org.junit.jupiter.api.Test;
@@ -53,5 +55,42 @@ class OutboxDebugControllerTests {
 		assertThat(response.getBody().success()).isTrue();
 		assertThat(response.getBody().data()).hasSize(1);
 		verify(outboxDebugApplicationService).createDemoBatch();
+	}
+
+	/**
+	 * 控制器应支持按类型创建单条调试消息。
+	 */
+	@Test
+	void shouldReturnCreatedSingleDebugEvent() {
+		OutboxDebugApplicationService outboxDebugApplicationService = mock(OutboxDebugApplicationService.class);
+		OutboxDebugController controller = new OutboxDebugController(outboxDebugApplicationService);
+
+		OutboxEventAdminVO event = new OutboxEventAdminVO(
+			2L,
+			"evt-debug-single",
+			"PAYMENT",
+			"ORD-DEBUG-SINGLE-001",
+			"PAYMENT_SUCCEEDED",
+			"mall.payment.succeeded",
+			"ORD-DEBUG-SINGLE-001",
+			OutboxEventStatus.FAILED,
+			1,
+			Instant.parse("2026-04-14T13:10:00Z"),
+			"模拟 Kafka 不可用，等待下次自动重试",
+			null,
+			Instant.parse("2026-04-14T13:00:00Z"),
+			Instant.parse("2026-04-14T13:00:00Z")
+		);
+		when(outboxDebugApplicationService.createSingleEvent(OutboxDebugEventType.FAILED, "ORD-DEBUG-SINGLE-001"))
+			.thenReturn(event);
+
+		ResponseEntity<ApiResponse<OutboxEventAdminVO>> response = controller.createSingleEvent(
+			new CreateOutboxDebugEventDTO(OutboxDebugEventType.FAILED, "ORD-DEBUG-SINGLE-001")
+		);
+
+		assertThat(response.getStatusCode().value()).isEqualTo(201);
+		assertThat(response.getBody()).isNotNull();
+		assertThat(response.getBody().data().aggregateId()).isEqualTo("ORD-DEBUG-SINGLE-001");
+		verify(outboxDebugApplicationService).createSingleEvent(OutboxDebugEventType.FAILED, "ORD-DEBUG-SINGLE-001");
 	}
 }

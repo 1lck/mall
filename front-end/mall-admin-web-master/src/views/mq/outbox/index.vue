@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { dayjs, ElMessage } from 'element-plus'
+import { dayjs } from 'element-plus'
 import { Search, Tickets } from '@element-plus/icons-vue'
-import { createOutboxDemoBatchAPI, getOutboxEventListAPI } from '@/apis/outbox'
+import { getOutboxEventListAPI } from '@/apis/outbox'
 import type { OutboxEvent, OutboxEventStatus, OutboxQueryParam } from '@/types/outbox'
 
 const listQuery = ref<OutboxQueryParam>({
@@ -75,13 +75,6 @@ const handleSizeChange = (val: number) => {
 
 const handleCurrentChange = (val: number) => {
   listQuery.value.pageNum = val
-  getList()
-}
-
-const handleCreateDemoBatch = async () => {
-  await createOutboxDemoBatchAPI()
-  ElMessage.success('已生成一组 outbox 演示数据')
-  listQuery.value.pageNum = 1
   getList()
 }
 
@@ -190,7 +183,6 @@ const statusTagType = (status: OutboxEventStatus) => {
         <Tickets />
       </el-icon>
       <span>Outbox 数据列表</span>
-      <el-button class="btn-add" @click="handleCreateDemoBatch()">生成演示数据</el-button>
     </el-card>
 
     <div class="table-container">

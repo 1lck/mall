@@ -2,15 +2,18 @@ package com.mall.modules.outbox.controller;
 
 import com.mall.common.api.ApiResponse;
 import com.mall.modules.outbox.application.OutboxDebugApplicationService;
+import com.mall.modules.outbox.dto.CreateOutboxDebugEventDTO;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 /**
@@ -40,5 +43,21 @@ public class OutboxDebugController {
 	@Operation(summary = "Create outbox demo batch", description = "Creates several demo outbox events for observation.")
 	public ResponseEntity<ApiResponse<List<OutboxEventAdminVO>>> createDemoBatch() {
 		return ResponseEntity.status(201).body(ApiResponse.success(outboxDebugApplicationService.createDemoBatch()));
+	}
+
+	/**
+	 * 按指定调试类型生成单条 outbox 消息。
+	 *
+	 * @param request 调试消息类型与可选聚合标识
+	 * @return 刚创建的单条调试消息
+	 */
+	@PostMapping("/single")
+	@Operation(summary = "Create single outbox debug event", description = "Creates one outbox debug event by type.")
+	public ResponseEntity<ApiResponse<OutboxEventAdminVO>> createSingleEvent(
+		@Valid @RequestBody CreateOutboxDebugEventDTO request
+	) {
+		return ResponseEntity.status(201).body(ApiResponse.success(
+			outboxDebugApplicationService.createSingleEvent(request.type(), request.aggregateId())
+		));
 	}
 }

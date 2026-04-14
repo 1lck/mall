@@ -1,6 +1,6 @@
 import http from '@/utils/http'
 import type { CommonPage } from '@/types/common'
-import type { OutboxEvent, OutboxQueryParam } from '@/types/outbox'
+import type { OutboxDebugEventType, OutboxEvent, OutboxQueryParam } from '@/types/outbox'
 
 function paginate<T>(items: T[], pageNum: number, pageSize: number): CommonPage<T> {
   const safePageNum = Math.max(pageNum, 1)
@@ -41,5 +41,16 @@ export function createOutboxDemoBatchAPI() {
   return http<OutboxEvent[]>({
     method: 'POST',
     url: '/api/v1/admin/outbox-debug/demo-batch',
+  })
+}
+
+export function createSingleOutboxDebugEventAPI(data: {
+  type: OutboxDebugEventType
+  aggregateId?: string
+}) {
+  return http<OutboxEvent>({
+    method: 'POST',
+    url: '/api/v1/admin/outbox-debug/single',
+    data,
   })
 }

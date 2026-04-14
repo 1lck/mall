@@ -64,11 +64,26 @@ export const asyncRouterMap: RouteRecordExt[] = [
         component: () => import('@/views/oms/order/index.vue'),
         meta: { title: '订单列表', icon: 'product-list' },
       },
+    ],
+  },
+  {
+    path: '/mq',
+    component: Layout,
+    redirect: '/mq/outbox',
+    name: 'mq',
+    meta: { title: '消息调试', icon: 'product-list' },
+    children: [
       {
         path: 'outbox',
-        name: 'outbox',
-        component: () => import('@/views/oms/outbox/index.vue'),
+        name: 'mqOutbox',
+        component: () => import('@/views/mq/outbox/index.vue'),
         meta: { title: '消息观察', icon: 'product-list' },
+      },
+      {
+        path: 'mock',
+        name: 'mqMock',
+        component: () => import('@/views/mq/mock/index.vue'),
+        meta: { title: 'Mock数据', icon: 'product-list' },
       },
     ],
   },

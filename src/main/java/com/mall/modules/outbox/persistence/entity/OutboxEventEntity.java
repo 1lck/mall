@@ -5,9 +5,10 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
+import com.mall.modules.outbox.persistence.typehandler.JsonbTypeHandler;
+import org.apache.ibatis.type.JdbcType;
 
 import java.time.Instant;
 
@@ -42,7 +43,7 @@ public class OutboxEventEntity {
 	private String messageKey;
 
 	// 用 jsonb 保存完整事件体，保证“待发消息”先被可靠落库。
-	@TableField(typeHandler = JacksonTypeHandler.class)
+	@TableField(typeHandler = JsonbTypeHandler.class, jdbcType = JdbcType.OTHER)
 	private JsonNode payload;
 
 	// 当前 outbox 投递状态。
