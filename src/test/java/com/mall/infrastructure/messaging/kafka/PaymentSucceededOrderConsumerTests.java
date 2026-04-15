@@ -125,4 +125,35 @@ class PaymentSucceededOrderConsumerTests {
 		verify(acknowledgment, never()).acknowledge();
 		verify(orderRepository, never()).save(any());
 	}
+
+	@Test
+	void onPaymentSucceededShouldFailFirstTimeAndSucceedSecondTimeForDebugOrder() {
+		PaymentSucceededEvent event = new PaymentSucceededEvent(
+			"ORD-CONSUMER-FAIL-001",
+			new BigDecimal("199.90"),
+			Instant.parse("2026-04-12T08:00:00Z")
+		);
+		OrderEntity order = new OrderEntity();
+		order.setOrderNo(event.orderNo());
+		order.setUserId(42L);
+		order.setTotalAmount(event.amount());
+		order.setStatus(OrderStatus.CREATED);
+
+		when(orderEventRecordRepository.claimProcessing("PAYMENT_SUCCEEDED", event.orderNo()))
+			.thenReturn(1);
+		when(orderRepository.findByOrderNo(event.orderNo()))
+			.thenReturn(Optional.of(order));
+
+		assertThatThrownBy(() -> paymentSucceededOrderConsumer.onPaymentSucceeded(event, acknowledgment))
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("debug consumer failure");
+		verify(acknowledgment, never()).acknowledge();
+		verify(orderRepository, never()).save(any());
+
+		paymentSucceededOrderConsumer.onPaymentSucceeded(event, acknowledgment);
+
+		assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+		verify(orderRepository).save(order);
+		verify(acknowledgment).acknowledge();
+	}
 }

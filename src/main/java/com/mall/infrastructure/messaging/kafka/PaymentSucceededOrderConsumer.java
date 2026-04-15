@@ -15,6 +15,9 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * 支付成功事件消费者。
  */
@@ -25,6 +28,12 @@ public class PaymentSucceededOrderConsumer {
 	private static final Logger log = LoggerFactory.getLogger(PaymentSucceededOrderConsumer.class);
 	/** 支付成功事件的幂等处理标识。 */
 	private static final String PAYMENT_SUCCEEDED_EVENT_TYPE = "PAYMENT_SUCCEEDED";
+	/** 用于练习“消费者失败后重投”的订单号前缀。 */
+	private static final String DEBUG_FAIL_ONCE_ORDER_PREFIX = "ORD-CONSUMER-FAIL-";
+
+	// 调试练习只需要进程内计数即可：
+	// 记录某个订单号已经进入消费者多少次，用来实现“第一次故意失败，第二次放行”。
+	private final ConcurrentHashMap<String, AtomicInteger> debugConsumeAttempts = new ConcurrentHashMap<>();
 
 	private final OrderMapper orderRepository;
 	private final OrderEventRecordMapper orderEventRecordRepository;
@@ -47,6 +56,8 @@ public class PaymentSucceededOrderConsumer {
 	)
 	@Transactional
 	public void onPaymentSucceeded(PaymentSucceededEvent event, Acknowledgment acknowledgment) {
+		maybeFailForDebug(event);
+
 		// 支付成功这半段和订单创建那半段保持同一种并发模型：
 		// 先抢处理资格，再做状态回写，避免同一笔支付事件被并发重复生效。
 		boolean claimed = orderEventRecordRepository.claimProcessing(
@@ -85,6 +96,28 @@ public class PaymentSucceededOrderConsumer {
 			);
 			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 		}
+	}
+
+	/**
+	 * 针对指定前缀订单号，制造一次“第一次消费失败，第二次重投成功”的练习场景。
+	 */
+	private void maybeFailForDebug(PaymentSucceededEvent event) {
+		if (!event.orderNo().startsWith(DEBUG_FAIL_ONCE_ORDER_PREFIX)) {
+			return;
+		}
+
+		int attempt = debugConsumeAttempts
+			.computeIfAbsent(event.orderNo(), ignored -> new AtomicInteger(0))
+			.incrementAndGet();
+
+		if (attempt == 1) {
+			log.warn("消费者调试练习：首次消费故意失败，等待 Kafka 重投: orderNo={}, attempt={}", event.orderNo(), attempt);
+			throw new IllegalStateException("debug consumer failure for " + event.orderNo());
+		}
+
+		// 第二次及以后放行，并及时清掉调试计数，避免这条记录长期占在内存里。
+		debugConsumeAttempts.remove(event.orderNo());
+		log.info("消费者调试练习：重投后放行，继续执行正常消费逻辑: orderNo={}, attempt={}", event.orderNo(), attempt);
 	}
 
 	/**

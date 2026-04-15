@@ -3,12 +3,15 @@ package com.mall.modules.outbox.controller;
 import com.mall.common.api.ApiResponse;
 import com.mall.modules.outbox.application.OutboxDebugApplicationService;
 import com.mall.modules.outbox.dto.CreateOutboxDebugEventDTO;
+import com.mall.modules.outbox.dto.DirectSendPaymentSucceededDebugDTO;
 import com.mall.modules.outbox.dto.OutboxDebugEventType;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
+import com.mall.modules.payment.event.PaymentSucceededEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -109,5 +112,30 @@ class OutboxDebugControllerTests {
 		assertThat(response.success()).isTrue();
 		assertThat(response.data()).isEqualTo(8);
 		verify(outboxDebugApplicationService).cleanupDebugEvents();
+	}
+
+	/**
+	 * 控制器应支持直接发送支付成功 Kafka 调试消息。
+	 */
+	@Test
+	void shouldSendPaymentSucceededMessageDirectly() {
+		OutboxDebugApplicationService outboxDebugApplicationService = mock(OutboxDebugApplicationService.class);
+		OutboxDebugController controller = new OutboxDebugController(outboxDebugApplicationService);
+		PaymentSucceededEvent event = new PaymentSucceededEvent(
+			"ORD-CONSUMER-FAIL-001",
+			new BigDecimal("66.60"),
+			Instant.parse("2026-04-15T10:00:00Z")
+		);
+		when(outboxDebugApplicationService.sendPaymentSucceededMessage("ORD-CONSUMER-FAIL-001", new BigDecimal("66.60")))
+			.thenReturn(event);
+
+		ResponseEntity<ApiResponse<PaymentSucceededEvent>> response = controller.sendPaymentSucceededMessage(
+			new DirectSendPaymentSucceededDebugDTO("ORD-CONSUMER-FAIL-001", new BigDecimal("66.60"))
+		);
+
+		assertThat(response.getStatusCode().value()).isEqualTo(201);
+		assertThat(response.getBody()).isNotNull();
+		assertThat(response.getBody().data().orderNo()).isEqualTo("ORD-CONSUMER-FAIL-001");
+		verify(outboxDebugApplicationService).sendPaymentSucceededMessage("ORD-CONSUMER-FAIL-001", new BigDecimal("66.60"));
 	}
 }

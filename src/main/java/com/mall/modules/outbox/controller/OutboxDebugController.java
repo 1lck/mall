@@ -3,7 +3,9 @@ package com.mall.modules.outbox.controller;
 import com.mall.common.api.ApiResponse;
 import com.mall.modules.outbox.application.OutboxDebugApplicationService;
 import com.mall.modules.outbox.dto.CreateOutboxDebugEventDTO;
+import com.mall.modules.outbox.dto.DirectSendPaymentSucceededDebugDTO;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
+import com.mall.modules.payment.event.PaymentSucceededEvent;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -69,6 +71,22 @@ public class OutboxDebugController {
 	) {
 		return ResponseEntity.status(201).body(ApiResponse.success(
 			outboxDebugApplicationService.createSingleEvent(request.type(), request.aggregateId())
+		));
+	}
+
+	/**
+	 * 直接发送支付成功 Kafka 调试消息。
+	 *
+	 * @param request 订单号与可选支付金额
+	 * @return 已成功发出的支付成功事件
+	 */
+	@PostMapping("/direct-payment-succeeded")
+	@Operation(summary = "Send payment succeeded message directly", description = "Sends a payment succeeded message straight to Kafka for consumer practice.")
+	public ResponseEntity<ApiResponse<PaymentSucceededEvent>> sendPaymentSucceededMessage(
+		@Valid @RequestBody DirectSendPaymentSucceededDebugDTO request
+	) {
+		return ResponseEntity.status(201).body(ApiResponse.success(
+			outboxDebugApplicationService.sendPaymentSucceededMessage(request.orderNo(), request.amount())
 		));
 	}
 }

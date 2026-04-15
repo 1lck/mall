@@ -2,11 +2,13 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Tickets } from '@element-plus/icons-vue'
-import { createOutboxDemoBatchAPI, createSingleOutboxDebugEventAPI } from '@/apis/outbox'
+import { createOutboxDemoBatchAPI, createSingleOutboxDebugEventAPI, sendPaymentSucceededDebugMessageAPI } from '@/apis/outbox'
 import type { OutboxDebugEventType } from '@/types/outbox'
 
 const creating = ref(false)
 const customAggregateId = ref('')
+const directSendOrderNo = ref('ORD-CONSUMER-FAIL-001')
+const directSendAmount = ref(99.9)
 
 const handleCreateDemoBatch = async () => {
   creating.value = true
@@ -26,6 +28,25 @@ const handleCreateSingleEvent = async (type: OutboxDebugEventType, label: string
       aggregateId: customAggregateId.value.trim() || undefined,
     })
     ElMessage.success(`已生成单条${label}调试消息`)
+  } finally {
+    creating.value = false
+  }
+}
+
+const handleDirectSendPaymentSucceeded = async () => {
+  const orderNo = directSendOrderNo.value.trim()
+  if (!orderNo) {
+    ElMessage.warning('请先输入订单号')
+    return
+  }
+
+  creating.value = true
+  try {
+    await sendPaymentSucceededDebugMessageAPI({
+      orderNo,
+      amount: directSendAmount.value,
+    })
+    ElMessage.success(`已直接发送支付成功 Kafka 消息：${orderNo}`)
   } finally {
     creating.value = false
   }
@@ -95,6 +116,34 @@ const handleCreateSingleEvent = async (type: OutboxDebugEventType, label: string
             </el-button>
           </div>
         </el-card>
+
+        <el-card shadow="hover" class="action-card">
+          <div class="action-title">
+            <el-icon><Tickets /></el-icon>
+            <span>直接发送支付成功消息</span>
+          </div>
+          <div class="action-desc">
+            这个入口不走 outbox，会直接往 <code>mall.payment.succeeded</code> 发一条消息。
+            适合你练消费者失败、重投、ack 时机这些 Kafka 侧行为。
+          </div>
+          <div class="direct-form">
+            <el-input
+              v-model="directSendOrderNo"
+              placeholder="例如 ORD-CONSUMER-FAIL-001"
+              clearable
+            />
+            <el-input-number
+              v-model="directSendAmount"
+              :min="0.01"
+              :precision="2"
+              :step="1"
+              controls-position="right"
+            />
+            <el-button type="success" :loading="creating" @click="handleDirectSendPaymentSucceeded()">
+              直接发 Kafka
+            </el-button>
+          </div>
+        </el-card>
       </div>
     </el-card>
   </div>
@@ -153,5 +202,22 @@ const handleCreateSingleEvent = async (type: OutboxDebugEventType, label: string
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.direct-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 140px auto;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .filter-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .direct-form {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

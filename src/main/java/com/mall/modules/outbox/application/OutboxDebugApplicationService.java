@@ -2,13 +2,18 @@ package com.mall.modules.outbox.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.config.KafkaTopicsProperties;
+import com.mall.common.api.ErrorCode;
+import com.mall.common.exception.BusinessException;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
 import com.mall.modules.outbox.dto.OutboxDebugEventType;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
 import com.mall.modules.payment.event.PaymentSucceededEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -16,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Outbox 调试数据应用服务。
@@ -28,6 +34,11 @@ import java.util.UUID;
 @ConditionalOnProperty(name = {"mall.outbox.debug.enabled", "mall.kafka.enabled"}, havingValue = "true")
 public class OutboxDebugApplicationService {
 
+	private static final Logger log = LoggerFactory.getLogger(OutboxDebugApplicationService.class);
+	/** 调试接口直接发送 Kafka 时使用的默认支付金额。 */
+	private static final BigDecimal DEFAULT_DEBUG_PAYMENT_AMOUNT = new BigDecimal("99.90");
+	/** 调试接口等待 Kafka send 完成的最长时间，避免请求线程无限卡住。 */
+	private static final long DIRECT_SEND_WAIT_SECONDS = 5;
 	/** 调试页生成的 outbox 消息统一打上专门聚合类型，便于后续清理。 */
 	private static final String DEBUG_AGGREGATE_TYPE = "PAYMENT_DEBUG";
 	/** 支付成功事件类型。 */
@@ -37,19 +48,53 @@ public class OutboxDebugApplicationService {
 
 	private final OutboxEventMapper outboxEventMapper;
 	private final OutboxDispatchTrigger outboxDispatchTrigger;
+	private final KafkaTemplate<String, Object> kafkaTemplate;
 	private final KafkaTopicsProperties kafkaTopicsProperties;
 	private final ObjectMapper objectMapper;
 
 	public OutboxDebugApplicationService(
 		OutboxEventMapper outboxEventMapper,
 		OutboxDispatchTrigger outboxDispatchTrigger,
+		KafkaTemplate<String, Object> kafkaTemplate,
 		KafkaTopicsProperties kafkaTopicsProperties,
 		ObjectMapper objectMapper
 	) {
 		this.outboxEventMapper = outboxEventMapper;
 		this.outboxDispatchTrigger = outboxDispatchTrigger;
+		this.kafkaTemplate = kafkaTemplate;
 		this.kafkaTopicsProperties = kafkaTopicsProperties;
 		this.objectMapper = objectMapper;
+	}
+
+	/**
+	 * 直接往 Kafka 发送一条支付成功调试消息。
+	 *
+	 * <p>这个入口专门用于练习消费者链路，不会落 outbox。
+	 * 方法会等待 send future 完成后再返回，确保前端收到成功提示时，
+	 * 这条消息已经真正交给 Kafka 客户端发送流程。</p>
+	 *
+	 * @param orderNo 要发送的订单号
+	 * @param amount 调试支付金额；为空时使用默认值
+	 * @return 实际发送出去的支付成功事件内容
+	 */
+	public PaymentSucceededEvent sendPaymentSucceededMessage(String orderNo, BigDecimal amount) {
+		BigDecimal resolvedAmount = amount == null ? DEFAULT_DEBUG_PAYMENT_AMOUNT : amount;
+		PaymentSucceededEvent event = new PaymentSucceededEvent(orderNo, resolvedAmount, Instant.now());
+
+		try {
+			kafkaTemplate.send(
+				kafkaTopicsProperties.getTopics().getPaymentSucceeded(),
+				orderNo,
+				event
+			).get(DIRECT_SEND_WAIT_SECONDS, TimeUnit.SECONDS);
+			log.info("调试接口已直接发送支付成功 Kafka 消息: orderNo={}, amount={}", orderNo, resolvedAmount);
+			return event;
+		} catch (Exception exception) {
+			throw new BusinessException(
+				ErrorCode.INTERNAL_ERROR,
+				"调试支付成功消息发送失败: " + exception.getMessage()
+			);
+		}
 	}
 
 	/**

@@ -62,6 +62,17 @@ export function createSingleOutboxDebugEventAPI(data: {
   })
 }
 
+export function sendPaymentSucceededDebugMessageAPI(data: {
+  orderNo: string
+  amount?: number
+}) {
+  return http({
+    method: 'POST',
+    url: '/api/v1/admin/outbox-debug/direct-payment-succeeded',
+    data,
+  })
+}
+
 export function retryOutboxEventAPI(id: number) {
   return http<OutboxEvent>({
     method: 'POST',

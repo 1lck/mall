@@ -7,11 +7,17 @@ import com.mall.modules.outbox.dto.OutboxDebugEventType;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
 import com.mall.modules.outbox.vo.OutboxEventAdminVO;
+import com.mall.modules.payment.event.PaymentSucceededEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -31,11 +37,13 @@ class OutboxDebugApplicationServiceTests {
 	void shouldCreateDemoBatchAndTriggerImmediateFailEvent() {
 		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
 		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
 		KafkaTopicsProperties kafkaTopicsProperties = new KafkaTopicsProperties();
 		kafkaTopicsProperties.getTopics().setPaymentSucceeded("mall.payment.succeeded");
 		OutboxDebugApplicationService service = new OutboxDebugApplicationService(
 			outboxEventMapper,
 			outboxDispatchTrigger,
+			kafkaTemplate,
 			kafkaTopicsProperties,
 			new ObjectMapper().findAndRegisterModules()
 		);
@@ -87,11 +95,13 @@ class OutboxDebugApplicationServiceTests {
 	void shouldCreateSingleFailedEventWithCustomAggregateId() {
 		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
 		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
 		KafkaTopicsProperties kafkaTopicsProperties = new KafkaTopicsProperties();
 		kafkaTopicsProperties.getTopics().setPaymentSucceeded("mall.payment.succeeded");
 		OutboxDebugApplicationService service = new OutboxDebugApplicationService(
 			outboxEventMapper,
 			outboxDispatchTrigger,
+			kafkaTemplate,
 			kafkaTopicsProperties,
 			new ObjectMapper().findAndRegisterModules()
 		);
@@ -113,11 +123,13 @@ class OutboxDebugApplicationServiceTests {
 	void shouldCleanupDebugEvents() {
 		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
 		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
 		KafkaTopicsProperties kafkaTopicsProperties = new KafkaTopicsProperties();
 		kafkaTopicsProperties.getTopics().setPaymentSucceeded("mall.payment.succeeded");
 		OutboxDebugApplicationService service = new OutboxDebugApplicationService(
 			outboxEventMapper,
 			outboxDispatchTrigger,
+			kafkaTemplate,
 			kafkaTopicsProperties,
 			new ObjectMapper().findAndRegisterModules()
 		);
@@ -128,5 +140,49 @@ class OutboxDebugApplicationServiceTests {
 
 		assertThat(deletedCount).isEqualTo(6);
 		verify(outboxEventMapper).deleteDebugEvents("PAYMENT_DEBUG", "ORD-DEMO-%");
+	}
+
+	/**
+	 * 直接发送支付成功调试消息时，应等待 Kafka 发送完成后再返回事件内容。
+	 */
+	@Test
+	void shouldSendPaymentSucceededMessageDirectlyToKafka() {
+		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
+		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		@SuppressWarnings("unchecked")
+		KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+		KafkaTopicsProperties kafkaTopicsProperties = new KafkaTopicsProperties();
+		kafkaTopicsProperties.getTopics().setPaymentSucceeded("mall.payment.succeeded");
+		OutboxDebugApplicationService service = new OutboxDebugApplicationService(
+			outboxEventMapper,
+			outboxDispatchTrigger,
+			kafkaTemplate,
+			kafkaTopicsProperties,
+			new ObjectMapper().findAndRegisterModules()
+		);
+		CompletableFuture<SendResult<String, Object>> sendFuture = CompletableFuture.completedFuture(null);
+		when(kafkaTemplate.send(
+			org.mockito.ArgumentMatchers.eq("mall.payment.succeeded"),
+			org.mockito.ArgumentMatchers.eq("ORD-CONSUMER-FAIL-001"),
+			org.mockito.ArgumentMatchers.any(PaymentSucceededEvent.class)
+		)).thenReturn(sendFuture);
+
+		PaymentSucceededEvent result = service.sendPaymentSucceededMessage(
+			"ORD-CONSUMER-FAIL-001",
+			new BigDecimal("88.80")
+		);
+
+		ArgumentCaptor<PaymentSucceededEvent> eventCaptor = ArgumentCaptor.forClass(PaymentSucceededEvent.class);
+		verify(kafkaTemplate).send(
+			org.mockito.ArgumentMatchers.eq("mall.payment.succeeded"),
+			org.mockito.ArgumentMatchers.eq("ORD-CONSUMER-FAIL-001"),
+			eventCaptor.capture()
+		);
+		assertThat(sendFuture).isCompleted();
+		assertThat(result.orderNo()).isEqualTo("ORD-CONSUMER-FAIL-001");
+		assertThat(result.amount()).isEqualByComparingTo("88.80");
+		assertThat(result.paidAt()).isNotNull();
+		assertThat(Duration.between(eventCaptor.getValue().paidAt(), result.paidAt()).abs())
+			.isLessThan(Duration.ofSeconds(1));
 	}
 }
