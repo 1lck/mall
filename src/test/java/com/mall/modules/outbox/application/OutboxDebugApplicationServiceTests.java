@@ -105,4 +105,28 @@ class OutboxDebugApplicationServiceTests {
 		assertThat(result.status()).isEqualTo(OutboxEventStatus.FAILED);
 		assertThat(result.lastError()).isEqualTo("模拟 Kafka 不可用，等待下次自动重试");
 	}
+
+	/**
+	 * 清理调试数据时，应只调用专门的调试数据删除语句。
+	 */
+	@Test
+	void shouldCleanupDebugEvents() {
+		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
+		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		KafkaTopicsProperties kafkaTopicsProperties = new KafkaTopicsProperties();
+		kafkaTopicsProperties.getTopics().setPaymentSucceeded("mall.payment.succeeded");
+		OutboxDebugApplicationService service = new OutboxDebugApplicationService(
+			outboxEventMapper,
+			outboxDispatchTrigger,
+			kafkaTopicsProperties,
+			new ObjectMapper().findAndRegisterModules()
+		);
+
+		when(outboxEventMapper.deleteDebugEvents("PAYMENT_DEBUG", "ORD-DEMO-%")).thenReturn(6);
+
+		int deletedCount = service.cleanupDebugEvents();
+
+		assertThat(deletedCount).isEqualTo(6);
+		verify(outboxEventMapper).deleteDebugEvents("PAYMENT_DEBUG", "ORD-DEMO-%");
+	}
 }

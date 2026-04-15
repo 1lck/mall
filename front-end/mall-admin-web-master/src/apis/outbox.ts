@@ -44,6 +44,13 @@ export function createOutboxDemoBatchAPI() {
   })
 }
 
+export function cleanupOutboxDebugEventsAPI() {
+  return http<number>({
+    method: 'POST',
+    url: '/api/v1/admin/outbox-debug/cleanup',
+  })
+}
+
 export function createSingleOutboxDebugEventAPI(data: {
   type: OutboxDebugEventType
   aggregateId?: string
@@ -52,5 +59,12 @@ export function createSingleOutboxDebugEventAPI(data: {
     method: 'POST',
     url: '/api/v1/admin/outbox-debug/single',
     data,
+  })
+}
+
+export function retryOutboxEventAPI(id: number) {
+  return http<OutboxEvent>({
+    method: 'POST',
+    url: `/api/v1/admin/outbox-events/${id}/retry`,
   })
 }

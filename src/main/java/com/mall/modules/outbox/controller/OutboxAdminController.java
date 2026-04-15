@@ -7,6 +7,8 @@ import com.mall.modules.outbox.vo.OutboxEventAdminVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,5 +48,17 @@ public class OutboxAdminController {
 		@RequestParam(required = false) Integer limit
 	) {
 		return ApiResponse.success(outboxAdminApplicationService.listEvents(status, keyword, limit));
+	}
+
+	/**
+	 * 对指定 outbox 记录发起一次人工重发。
+	 *
+	 * @param id outbox 主键
+	 * @return 重发申请后的最新 outbox 状态
+	 */
+	@PostMapping("/{id}/retry")
+	@Operation(summary = "Retry outbox event", description = "Retries a FAILED or DEAD outbox event immediately.")
+	public ApiResponse<OutboxEventAdminVO> retryOutboxEvent(@PathVariable Long id) {
+		return ApiResponse.success(outboxAdminApplicationService.retryEvent(id));
 	}
 }

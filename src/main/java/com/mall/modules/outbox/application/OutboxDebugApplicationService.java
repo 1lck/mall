@@ -28,8 +28,8 @@ import java.util.UUID;
 @ConditionalOnProperty(name = {"mall.outbox.debug.enabled", "mall.kafka.enabled"}, havingValue = "true")
 public class OutboxDebugApplicationService {
 
-	/** 支付类 outbox 记录使用的聚合类型。 */
-	private static final String PAYMENT_AGGREGATE_TYPE = "PAYMENT";
+	/** 调试页生成的 outbox 消息统一打上专门聚合类型，便于后续清理。 */
+	private static final String DEBUG_AGGREGATE_TYPE = "PAYMENT_DEBUG";
 	/** 支付成功事件类型。 */
 	private static final String PAYMENT_SUCCEEDED_EVENT_TYPE = "PAYMENT_SUCCEEDED";
 	/** 用于稳定制造失败的调试事件类型。 */
@@ -97,6 +97,19 @@ public class OutboxDebugApplicationService {
 		}
 
 		throw new IllegalArgumentException("Unsupported debug event type: " + type);
+	}
+
+	/**
+	 * 清理当前调试功能生成的历史 outbox 数据。
+	 *
+	 * <p>为了避免误删真实业务消息，这里只删除两类记录：
+	 * 1. 当前新版本调试功能打过 DEBUG 聚合标记的消息
+	 * 2. 早期使用 ORD-DEMO-* 前缀生成的历史演示数据</p>
+	 *
+	 * @return 实际删除的记录条数
+	 */
+	public int cleanupDebugEvents() {
+		return outboxEventMapper.deleteDebugEvents(DEBUG_AGGREGATE_TYPE, "ORD-DEMO-%");
 	}
 
 	/**
@@ -173,7 +186,7 @@ public class OutboxDebugApplicationService {
 	private OutboxEventAdminVO createImmediateFailDemoEvent(Instant now, String aggregateId) {
 		OutboxEventEntity entity = new OutboxEventEntity();
 		entity.setEventId(UUID.randomUUID().toString());
-		entity.setAggregateType(PAYMENT_AGGREGATE_TYPE);
+		entity.setAggregateType(DEBUG_AGGREGATE_TYPE);
 		entity.setAggregateId(aggregateId);
 		entity.setEventType(UNSUPPORTED_DEBUG_EVENT_TYPE);
 		entity.setTopic(kafkaTopicsProperties.getTopics().getPaymentSucceeded());
@@ -216,7 +229,7 @@ public class OutboxDebugApplicationService {
 	private OutboxEventEntity buildPaymentEvent(String orderNo, Instant paidAt) {
 		OutboxEventEntity entity = new OutboxEventEntity();
 		entity.setEventId(UUID.randomUUID().toString());
-		entity.setAggregateType(PAYMENT_AGGREGATE_TYPE);
+		entity.setAggregateType(DEBUG_AGGREGATE_TYPE);
 		entity.setAggregateId(orderNo);
 		entity.setEventType(PAYMENT_SUCCEEDED_EVENT_TYPE);
 		entity.setTopic(kafkaTopicsProperties.getTopics().getPaymentSucceeded());

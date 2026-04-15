@@ -93,4 +93,21 @@ class OutboxDebugControllerTests {
 		assertThat(response.getBody().data().aggregateId()).isEqualTo("ORD-DEBUG-SINGLE-001");
 		verify(outboxDebugApplicationService).createSingleEvent(OutboxDebugEventType.FAILED, "ORD-DEBUG-SINGLE-001");
 	}
+
+	/**
+	 * 控制器应支持清理旧调试数据。
+	 */
+	@Test
+	void shouldCleanupDebugEvents() {
+		OutboxDebugApplicationService outboxDebugApplicationService = mock(OutboxDebugApplicationService.class);
+		OutboxDebugController controller = new OutboxDebugController(outboxDebugApplicationService);
+
+		when(outboxDebugApplicationService.cleanupDebugEvents()).thenReturn(8);
+
+		ApiResponse<Integer> response = controller.cleanupDebugEvents();
+
+		assertThat(response.success()).isTrue();
+		assertThat(response.data()).isEqualTo(8);
+		verify(outboxDebugApplicationService).cleanupDebugEvents();
+	}
 }

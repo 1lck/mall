@@ -1,5 +1,7 @@
 package com.mall.modules.outbox.application;
 
+import com.mall.common.api.ErrorCode;
+import com.mall.common.exception.BusinessException;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
@@ -24,9 +26,14 @@ public class OutboxAdminApplicationService {
 	private static final int MAX_LIMIT = 500;
 
 	private final OutboxEventMapper outboxEventMapper;
+	private final OutboxDispatchTrigger outboxDispatchTrigger;
 
-	public OutboxAdminApplicationService(OutboxEventMapper outboxEventMapper) {
+	public OutboxAdminApplicationService(
+		OutboxEventMapper outboxEventMapper,
+		OutboxDispatchTrigger outboxDispatchTrigger
+	) {
 		this.outboxEventMapper = outboxEventMapper;
+		this.outboxDispatchTrigger = outboxDispatchTrigger;
 	}
 
 	/**
@@ -45,6 +52,28 @@ public class OutboxAdminApplicationService {
 			result.add(toAdminVO(entity));
 		}
 		return result;
+	}
+
+	/**
+	 * 对 FAILED 或 DEAD 状态的消息发起一次人工重发。
+	 *
+	 * <p>这里会先把 outbox 记录重置回可发送状态，
+	 * 再立即触发一次精确投递，避免只是改了状态却还要继续等下一轮定时扫描。</p>
+	 *
+	 * @param id outbox 主键
+	 * @return 重发申请后的最新 outbox 展示对象
+	 */
+	public OutboxEventAdminVO retryEvent(Long id) {
+		OutboxEventEntity entity = outboxEventMapper.findById(id)
+			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Outbox event " + id + " was not found"));
+
+		validateRetryableStatus(entity);
+		outboxEventMapper.resetForManualRetry(id);
+		outboxDispatchTrigger.requestDispatch(id);
+
+		OutboxEventEntity latestEntity = outboxEventMapper.findById(id)
+			.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Outbox event " + id + " was not found"));
+		return toAdminVO(latestEntity);
 	}
 
 	/**
@@ -77,5 +106,19 @@ public class OutboxAdminApplicationService {
 			return DEFAULT_LIMIT;
 		}
 		return Math.min(limit, MAX_LIMIT);
+	}
+
+	/**
+	 * 校验这条消息当前是否允许人工重发。
+	 */
+	private void validateRetryableStatus(OutboxEventEntity entity) {
+		if (entity.getStatus() == OutboxEventStatus.FAILED || entity.getStatus() == OutboxEventStatus.DEAD) {
+			return;
+		}
+
+		throw new BusinessException(
+			ErrorCode.BAD_REQUEST,
+			"Only FAILED or DEAD outbox events can be retried manually."
+		);
 	}
 }

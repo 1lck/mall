@@ -46,6 +46,17 @@ public class OutboxDebugController {
 	}
 
 	/**
+	 * 清理调试功能生成的旧 outbox 数据。
+	 *
+	 * @return 实际删除的调试数据条数
+	 */
+	@PostMapping("/cleanup")
+	@Operation(summary = "Cleanup outbox debug events", description = "Deletes old outbox debug data created for practice.")
+	public ApiResponse<Integer> cleanupDebugEvents() {
+		return ApiResponse.success(outboxDebugApplicationService.cleanupDebugEvents());
+	}
+
+	/**
 	 * 按指定调试类型生成单条 outbox 消息。
 	 *
 	 * @param request 调试消息类型与可选聚合标识

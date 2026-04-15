@@ -91,6 +91,34 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventEntity> {
 	}
 
 	/**
+	 * 删除调试页生成的 outbox 历史数据。
+	 */
+	@Update("""
+		delete from outbox_events
+		where aggregate_type = #{debugAggregateType}
+		   or aggregate_id like #{legacyDemoPrefix}
+		""")
+	int deleteDebugEvents(
+		@Param("debugAggregateType") String debugAggregateType,
+		@Param("legacyDemoPrefix") String legacyDemoPrefix
+	);
+
+	/**
+	 * 手动重发前，把指定 outbox 记录重置回“可再次发送”的状态。
+	 */
+	@Update("""
+		update outbox_events
+		set status = 'PENDING',
+			retry_count = 0,
+			next_retry_at = null,
+			last_error = null,
+			sent_at = null,
+			updated_at = current_timestamp
+		where id = #{id}
+		""")
+	int resetForManualRetry(@Param("id") Long id);
+
+	/**
 	 * 只回写发送结果相关字段，避免 updateById 时把 jsonb payload 按普通字符串更新。
 	 */
 	@Update("""

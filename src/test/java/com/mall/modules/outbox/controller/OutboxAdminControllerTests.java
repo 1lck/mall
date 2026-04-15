@@ -54,4 +54,37 @@ class OutboxAdminControllerTests {
 		assertThat(response.data().get(0).eventId()).isEqualTo("evt-001");
 		verify(outboxAdminApplicationService).listEvents(OutboxEventStatus.FAILED, "ORDER-001", 50);
 	}
+
+	/**
+	 * 控制器应支持对失败消息发起手动重发。
+	 */
+	@Test
+	void shouldRetryOutboxEvent() {
+		OutboxAdminApplicationService outboxAdminApplicationService = mock(OutboxAdminApplicationService.class);
+		OutboxAdminController controller = new OutboxAdminController(outboxAdminApplicationService);
+
+		OutboxEventAdminVO event = new OutboxEventAdminVO(
+			1L,
+			"evt-001",
+			"PAYMENT",
+			"ORDER-001",
+			"PAYMENT_SUCCEEDED",
+			"mall.payment.succeeded",
+			"ORDER-001",
+			OutboxEventStatus.PENDING,
+			0,
+			null,
+			null,
+			null,
+			Instant.parse("2026-04-14T11:58:00Z"),
+			Instant.parse("2026-04-14T11:59:00Z")
+		);
+		when(outboxAdminApplicationService.retryEvent(1L)).thenReturn(event);
+
+		ApiResponse<OutboxEventAdminVO> response = controller.retryOutboxEvent(1L);
+
+		assertThat(response.success()).isTrue();
+		assertThat(response.data().status()).isEqualTo(OutboxEventStatus.PENDING);
+		verify(outboxAdminApplicationService).retryEvent(1L);
+	}
 }

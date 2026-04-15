@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { dayjs } from 'element-plus'
+import { dayjs, ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Tickets } from '@element-plus/icons-vue'
-import { getOutboxEventListAPI } from '@/apis/outbox'
+import { cleanupOutboxDebugEventsAPI, getOutboxEventListAPI, retryOutboxEventAPI } from '@/apis/outbox'
 import type { OutboxEvent, OutboxEventStatus, OutboxQueryParam } from '@/types/outbox'
 
 const listQuery = ref<OutboxQueryParam>({
@@ -13,6 +13,7 @@ const listQuery = ref<OutboxQueryParam>({
 const allList = ref<OutboxEvent[]>([])
 const list = ref<OutboxEvent[]>([])
 const listLoading = ref(false)
+const cleaning = ref(false)
 const total = ref(0)
 
 const statusOptions: { label: string; value: OutboxEventStatus }[] = [
@@ -78,6 +79,34 @@ const handleCurrentChange = (val: number) => {
   getList()
 }
 
+const handleRetryEvent = async (row: OutboxEvent) => {
+  await ElMessageBox.confirm('是否要手动重发这条 outbox 消息？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+  await retryOutboxEventAPI(row.id)
+  ElMessage.success('已发起手动重发请求')
+  getList()
+}
+
+const handleCleanupDebugEvents = async () => {
+  await ElMessageBox.confirm('是否要清空这套调试功能生成的旧 outbox 数据？不会删除真实业务消息。', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+  cleaning.value = true
+  try {
+    const res = await cleanupOutboxDebugEventsAPI()
+    ElMessage.success(`已清理 ${res.data} 条调试数据`)
+    listQuery.value.pageNum = 1
+    getList()
+  } finally {
+    cleaning.value = false
+  }
+}
+
 const formatDateTime = (time?: string) => {
   if (!time) {
     return '暂无'
@@ -109,6 +138,10 @@ const statusTagType = (status: OutboxEventStatus) => {
     return 'danger'
   }
   return 'info'
+}
+
+const canRetry = (status: OutboxEventStatus) => {
+  return status === 'FAILED' || status === 'DEAD'
 }
 </script>
 
@@ -183,6 +216,7 @@ const statusTagType = (status: OutboxEventStatus) => {
         <Tickets />
       </el-icon>
       <span>Outbox 数据列表</span>
+      <el-button class="btn-add" :loading="cleaning" @click="handleCleanupDebugEvents()">清空调试数据</el-button>
     </el-card>
 
     <div class="table-container">
@@ -209,6 +243,18 @@ const statusTagType = (status: OutboxEventStatus) => {
         </el-table-column>
         <el-table-column label="创建时间" width="180" align="center">
           <template #default="scope">{{ formatDateTime(scope.row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" align="center">
+          <template #default="scope">
+            <el-button
+              v-if="canRetry(scope.row.status)"
+              type="text"
+              size="small"
+              @click="handleRetryEvent(scope.row)"
+            >
+              手动重发
+            </el-button>
+          </template>
         </el-table-column>
       </el-table>
     </div>

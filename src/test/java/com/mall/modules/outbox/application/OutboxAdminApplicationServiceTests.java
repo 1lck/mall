@@ -1,6 +1,7 @@
 package com.mall.modules.outbox.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mall.common.exception.BusinessException;
 import com.mall.modules.outbox.domain.OutboxEventStatus;
 import com.mall.modules.outbox.persistence.entity.OutboxEventEntity;
 import com.mall.modules.outbox.persistence.mapper.OutboxEventMapper;
@@ -12,7 +13,9 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,7 +30,8 @@ class OutboxAdminApplicationServiceTests {
 	@Test
 	void shouldUseDefaultLimitAndMapEntityToAdminVO() {
 		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
-		OutboxAdminApplicationService service = new OutboxAdminApplicationService(outboxEventMapper);
+		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		OutboxAdminApplicationService service = new OutboxAdminApplicationService(outboxEventMapper, outboxDispatchTrigger);
 
 		OutboxEventEntity entity = buildEntity();
 		when(outboxEventMapper.findAdminList(OutboxEventStatus.FAILED, "ORDER-001", 200))
@@ -49,7 +53,8 @@ class OutboxAdminApplicationServiceTests {
 	@Test
 	void shouldCapLimitToMaximumValue() {
 		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
-		OutboxAdminApplicationService service = new OutboxAdminApplicationService(outboxEventMapper);
+		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		OutboxAdminApplicationService service = new OutboxAdminApplicationService(outboxEventMapper, outboxDispatchTrigger);
 
 		when(outboxEventMapper.findAdminList(null, null, 500)).thenReturn(List.of());
 
@@ -57,6 +62,51 @@ class OutboxAdminApplicationServiceTests {
 
 		assertThat(result).isEmpty();
 		verify(outboxEventMapper).findAdminList(null, null, 500);
+	}
+
+	/**
+	 * 手动重发时，应先重置状态，再立即触发一次精确投递。
+	 */
+	@Test
+	void shouldResetAndDispatchRetryableOutboxEvent() {
+		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
+		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		OutboxAdminApplicationService service = new OutboxAdminApplicationService(outboxEventMapper, outboxDispatchTrigger);
+
+		OutboxEventEntity failedEntity = buildEntity();
+		failedEntity.setStatus(OutboxEventStatus.FAILED);
+		OutboxEventEntity pendingEntity = buildEntity();
+		pendingEntity.setStatus(OutboxEventStatus.PENDING);
+		pendingEntity.setRetryCount(0);
+		pendingEntity.setLastError(null);
+		pendingEntity.setNextRetryAt(null);
+		when(outboxEventMapper.findById(1L)).thenReturn(java.util.Optional.of(failedEntity), java.util.Optional.of(pendingEntity));
+
+		OutboxEventAdminVO result = service.retryEvent(1L);
+
+		assertThat(result.status()).isEqualTo(OutboxEventStatus.PENDING);
+		verify(outboxEventMapper).resetForManualRetry(1L);
+		verify(outboxDispatchTrigger).requestDispatch(1L);
+	}
+
+	/**
+	 * 非 FAILED/DEAD 状态的消息，不允许人工重发。
+	 */
+	@Test
+	void shouldRejectRetryForNonRetryableStatus() {
+		OutboxEventMapper outboxEventMapper = mock(OutboxEventMapper.class);
+		OutboxDispatchTrigger outboxDispatchTrigger = mock(OutboxDispatchTrigger.class);
+		OutboxAdminApplicationService service = new OutboxAdminApplicationService(outboxEventMapper, outboxDispatchTrigger);
+
+		OutboxEventEntity sentEntity = buildEntity();
+		sentEntity.setStatus(OutboxEventStatus.SENT);
+		when(outboxEventMapper.findById(1L)).thenReturn(java.util.Optional.of(sentEntity));
+
+		assertThatThrownBy(() -> service.retryEvent(1L))
+			.isInstanceOf(BusinessException.class)
+			.hasMessage("Only FAILED or DEAD outbox events can be retried manually.");
+		verify(outboxEventMapper, never()).resetForManualRetry(1L);
+		verify(outboxDispatchTrigger, never()).requestDispatch(1L);
 	}
 
 	/**
