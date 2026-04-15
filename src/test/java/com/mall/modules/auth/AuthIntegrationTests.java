@@ -121,6 +121,29 @@ class AuthIntegrationTests extends IntegrationTestSupport {
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
 
+	@Test
+	void meShouldRejectOldTokenAfterUserIsDisabled() throws Exception {
+		registerDefaultUser();
+		MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
+				.contentType(APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(Map.of(
+					"username", "alice",
+					"password", "pass123456"
+				))))
+			.andExpect(status().isOk())
+			.andReturn();
+
+		JsonNode loginRoot = objectMapper.readTree(loginResult.getResponse().getContentAsString());
+		String token = loginRoot.path("data").path("token").asText();
+		jdbcTemplate.update("update users set status = 'DISABLED' where username = 'alice'");
+
+		mockMvc.perform(get("/api/v1/auth/me")
+				.header("Authorization", "Bearer " + token))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
 	private void registerDefaultUser() throws Exception {
 		MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
 				.contentType(APPLICATION_JSON)

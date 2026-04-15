@@ -3,6 +3,7 @@ package com.mall.modules.order.application;
 import com.mall.common.api.ErrorCode;
 import com.mall.common.exception.BusinessException;
 import com.mall.modules.order.dto.CreateOrderDTO;
+import com.mall.modules.order.dto.UpdateOrderDTO;
 import com.mall.modules.order.domain.OrderStatus;
 import com.mall.modules.order.event.OrderCreatedEvent;
 import com.mall.modules.order.persistence.entity.OrderEntity;
@@ -21,8 +22,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,6 +85,38 @@ class DefaultOrderApplicationServiceTests {
 			.isEqualTo(ErrorCode.BAD_REQUEST);
 	}
 
+	@Test
+	void updateOrderShouldRejectNonAdminUser() {
+		OrderEntity order = buildOrder(OrderStatus.CREATED, new BigDecimal("199.90"));
+		when(orderRepository.findByIdAndUserId(9L, 42L)).thenReturn(Optional.of(order));
+
+		assertThatThrownBy(() -> orderApplicationService.updateOrder(
+			42L,
+			false,
+			9L,
+			new UpdateOrderDTO(new BigDecimal("299.50"), OrderStatus.CANCELLED, "普通用户尝试修改")
+		))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.FORBIDDEN);
+	}
+
+	@Test
+	void updateOrderShouldRejectManualPaidTransitionEvenForAdmin() {
+		OrderEntity order = buildOrder(OrderStatus.CREATED, new BigDecimal("199.90"));
+		when(orderRepository.findById(9L)).thenReturn(Optional.of(order));
+
+		assertThatThrownBy(() -> orderApplicationService.updateOrder(
+			42L,
+			true,
+			9L,
+			new UpdateOrderDTO(new BigDecimal("299.50"), OrderStatus.PAID, "管理员尝试手动改成已支付")
+		))
+			.isInstanceOf(BusinessException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.BAD_REQUEST);
+	}
+
 	private void setOrderId(OrderEntity order, Long id) {
 		try {
 			var idField = OrderEntity.class.getDeclaredField("id");
@@ -104,5 +137,18 @@ class DefaultOrderApplicationServiceTests {
 		product.setStatus(ProductStatus.ON_SALE);
 		product.setDescription("练习商品描述");
 		return product;
+	}
+
+	private OrderEntity buildOrder(OrderStatus status, BigDecimal totalAmount) {
+		OrderEntity order = new OrderEntity();
+		setOrderId(order, 9L);
+		order.setOrderNo("ORD202604130009AAAAAA");
+		order.setUserId(42L);
+		order.setProductId(7L);
+		order.setQuantity(2);
+		order.setTotalAmount(totalAmount);
+		order.setStatus(status);
+		order.setRemark("原始订单");
+		return order;
 	}
 }

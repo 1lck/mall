@@ -192,7 +192,7 @@ class OrderCrudIntegrationTests extends IntegrationTestSupport {
 	}
 
 	@Test
-	void updateOrderShouldPersistChanges() throws Exception {
+	void updateOrderShouldRequireAdminRole() throws Exception {
 		AuthTestSupport.AuthSession session = AuthTestSupport.registerAndLoginDefaultUser(mockMvc, objectMapper);
 		Long productId = createProduct("库存商品F", 10, new BigDecimal("99.95"));
 		Long orderId = createOrderAndReturnId(session, productId);
@@ -200,13 +200,29 @@ class OrderCrudIntegrationTests extends IntegrationTestSupport {
 		mockMvc.perform(put("/api/v1/orders/{id}", orderId)
 				.header("Authorization", "Bearer " + session.token())
 				.contentType(APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("PAID", "updated order"))))
+				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("CANCELLED", "updated order"))))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+	}
+
+	@Test
+	void updateOrderShouldPersistChangesForAdmin() throws Exception {
+		AuthTestSupport.AuthSession session = AuthTestSupport.registerAndLoginDefaultUser(mockMvc, objectMapper);
+		AuthTestSupport.AuthSession adminSession = registerAndLoginAdmin();
+		Long productId = createProduct("库存商品F-ADMIN", 10, new BigDecimal("99.95"));
+		Long orderId = createOrderAndReturnId(session, productId);
+
+		mockMvc.perform(put("/api/v1/orders/{id}", orderId)
+				.header("Authorization", "Bearer " + adminSession.token())
+				.contentType(APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("CANCELLED", "admin updated order"))))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.id").value(orderId))
 			.andExpect(jsonPath("$.data.totalAmount").value(299.50))
-			.andExpect(jsonPath("$.data.status").value("PAID"))
-			.andExpect(jsonPath("$.data.remark").value("updated order"));
+			.andExpect(jsonPath("$.data.status").value("CANCELLED"))
+			.andExpect(jsonPath("$.data.remark").value("admin updated order"));
 	}
 
 	@Test
@@ -262,19 +278,36 @@ class OrderCrudIntegrationTests extends IntegrationTestSupport {
 	@Test
 	void updateOrderShouldRejectInvalidStatusTransition() throws Exception {
 		AuthTestSupport.AuthSession session = AuthTestSupport.registerAndLoginDefaultUser(mockMvc, objectMapper);
+		AuthTestSupport.AuthSession adminSession = registerAndLoginAdmin();
 		Long productId = createProduct("库存商品J", 10, new BigDecimal("99.95"));
 		Long orderId = createOrderAndReturnId(session, productId);
 
 		mockMvc.perform(put("/api/v1/orders/{id}", orderId)
-				.header("Authorization", "Bearer " + session.token())
+				.header("Authorization", "Bearer " + adminSession.token())
 				.contentType(APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("PAID", "paid order"))))
+				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("CANCELLED", "cancel order"))))
 			.andExpect(status().isOk());
 
 		mockMvc.perform(put("/api/v1/orders/{id}", orderId)
-				.header("Authorization", "Bearer " + session.token())
+				.header("Authorization", "Bearer " + adminSession.token())
 				.contentType(APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("CANCELLED", "try cancel paid order"))))
+				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("CREATED", "try reopen cancelled order"))))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+	}
+
+	@Test
+	void updateOrderShouldRejectManualPaidTransitionForAdmin() throws Exception {
+		AuthTestSupport.AuthSession session = AuthTestSupport.registerAndLoginDefaultUser(mockMvc, objectMapper);
+		AuthTestSupport.AuthSession adminSession = registerAndLoginAdmin();
+		Long productId = createProduct("库存商品K", 10, new BigDecimal("99.95"));
+		Long orderId = createOrderAndReturnId(session, productId);
+
+		mockMvc.perform(put("/api/v1/orders/{id}", orderId)
+				.header("Authorization", "Bearer " + adminSession.token())
+				.contentType(APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(buildUpdateOrderPayload("PAID", "try mark paid manually"))))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.code").value("BAD_REQUEST"));
@@ -311,6 +344,18 @@ class OrderCrudIntegrationTests extends IntegrationTestSupport {
 			"totalAmount", new BigDecimal("299.50"),
 			"status", status,
 			"remark", remark
+		);
+	}
+
+	private AuthTestSupport.AuthSession registerAndLoginAdmin() throws Exception {
+		String username = "admin" + System.nanoTime();
+		return AuthTestSupport.registerAndLoginAdmin(
+			mockMvc,
+			objectMapper,
+			jdbcTemplate,
+			username,
+			"管理员",
+			"admin123456"
 		);
 	}
 

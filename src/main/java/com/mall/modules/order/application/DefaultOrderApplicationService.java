@@ -125,9 +125,10 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 	 */
 	@Override
 	public OrderVO updateOrder(Long currentUserId, boolean isAdmin, Long id, UpdateOrderDTO request) {
-		// 更新订单允许修改的字段，并在这里统一校验状态流转是否合法。
-		// 更新时先查原订单，找不到就直接抛业务异常。
+		// 更新订单入口只开放给管理员，避免普通用户自行改金额或伪造支付状态。
 		OrderEntity order = getOrderEntity(currentUserId, isAdmin, id);
+		validateUpdatePermission(isAdmin);
+		validateManualPaidTransition(order.getStatus(), request.status());
 		validateStatusTransition(order.getStatus(), request.status());
 		order.setTotalAmount(request.totalAmount());
 		order.setStatus(request.status());
@@ -177,6 +178,24 @@ public class DefaultOrderApplicationService implements OrderApplicationService {
 				ErrorCode.BAD_REQUEST,
 				"Order status cannot transition from " + currentStatus + " to " + targetStatus
 			);
+		}
+	}
+
+	/**
+	 * 校验当前请求是否具备修改订单的权限。
+	 */
+	private void validateUpdatePermission(boolean isAdmin) {
+		if (!isAdmin) {
+			throw new BusinessException(ErrorCode.FORBIDDEN, "当前账号没有权限更新订单。");
+		}
+	}
+
+	/**
+	 * 阻止接口层直接把订单流转成已支付，避免绕过支付成功链路。
+	 */
+	private void validateManualPaidTransition(OrderStatus currentStatus, OrderStatus targetStatus) {
+		if (currentStatus != targetStatus && targetStatus == OrderStatus.PAID) {
+			throw new BusinessException(ErrorCode.BAD_REQUEST, "订单支付状态只能由支付流程更新。");
 		}
 	}
 

@@ -3,6 +3,9 @@ package com.mall.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.api.ApiResponse;
 import com.mall.common.api.ErrorCode;
+import com.mall.modules.user.domain.UserStatus;
+import com.mall.modules.user.persistence.entity.UserEntity;
+import com.mall.modules.user.persistence.mapper.UserMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +17,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -34,6 +38,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -127,17 +132,18 @@ public class SecurityConfig {
 	}
 
 	/**
-	 * 把 JWT 中的角色信息转换成 Spring Security 可识别的权限集合。
+	 * 把 JWT 中的身份信息转换成 Spring Security 可识别的认证对象。
 	 */
 	@Bean
-	public Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter() {
+	public Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter(UserMapper userRepository) {
 		return new Converter<>() {
 			@Override
 			public AbstractAuthenticationToken convert(Jwt jwt) {
+				UserEntity user = requireActiveUser(jwt, userRepository);
 				List<GrantedAuthority> authorities = new ArrayList<>();
-				String role = jwt.getClaimAsString("role");
+				String role = user.getRole().name();
 
-				// 只有令牌里明确带了角色时才注入权限，避免构造出无效角色。
+				// 这里优先使用数据库里的当前角色，避免旧令牌继续携带过期权限。
 				if (role != null && !role.isBlank()) {
 					authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
 				}
@@ -145,6 +151,28 @@ public class SecurityConfig {
 				return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
 			}
 		};
+	}
+
+	/**
+	 * 根据 JWT 里的 uid 读取当前账号，并确认该账号仍处于启用状态。
+	 */
+	private UserEntity requireActiveUser(Jwt jwt, UserMapper userRepository) {
+		Object uidClaim = jwt.getClaims().get("uid");
+		if (!(uidClaim instanceof Number uidNumber)) {
+			throw new BadCredentialsException("当前登录状态已失效，请重新登录。");
+		}
+
+		Optional<UserEntity> userOptional = userRepository.findById(uidNumber.longValue());
+		if (userOptional.isEmpty()) {
+			throw new BadCredentialsException("当前登录状态已失效，请重新登录。");
+		}
+
+		UserEntity user = userOptional.get();
+		if (user.getStatus() != UserStatus.ACTIVE) {
+			throw new BadCredentialsException("当前账号已被停用，请联系管理员。");
+		}
+
+		return user;
 	}
 
 	/**
