@@ -58,7 +58,7 @@ public class OrderCreatedLoggingConsumer {
 		if (!claimed) {
 			// 已被别人处理过时，同样走 afterCommit ack，
 			// 保持“事务结束后再提交 offset”的时序一致性。
-			log.info("Kafka order created event skipped because it was already processed: orderNo={}", event.orderNo());
+			log.info("订单创建事件已处理过，本次直接跳过: 订单号={}", event.orderNo());
 			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 			return;
 		}
@@ -74,7 +74,7 @@ public class OrderCreatedLoggingConsumer {
 		// 当前真实业务仍然保持极简：
 		// 先抢到处理资格，再创建支付记录，避免并发下重复执行业务副作用。
 		log.info(
-			"Kafka order created event consumed and payment record created: orderId={}, orderNo={}, userId={}, totalAmount={}",
+			"订单创建事件消费完成，已创建待支付记录: 订单记录编号={}, 订单号={}, 用户编号={}, 订单总金额={}",
 			event.orderId(),
 			event.orderNo(),
 			event.userId(),

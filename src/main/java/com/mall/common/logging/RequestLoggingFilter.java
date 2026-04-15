@@ -48,7 +48,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 		} finally {
 			long durationMs = (System.nanoTime() - startNanos) / 1_000_000;
 			log.info(
-				"HTTP request completed: method={}, path={}, status={}, durationMs={}, user={}, traceId={}",
+				"请求处理完成: 请求方法={}, 请求路径={}, 状态码={}, 耗时毫秒={}, 用户={}, 追踪编号={}",
 				request.getMethod(),
 				request.getRequestURI(),
 				response.getStatus(),
@@ -65,7 +65,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 	 */
 	private String resolvePrincipalName(Principal principal) {
 		if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
-			return "anonymous";
+			return "匿名用户";
 		}
 
 		return principal.getName();

@@ -18,6 +18,6 @@ public class NoOpPaymentEventPublisher implements PaymentEventPublisher {
 
 	@Override
 	public void publishPaymentSucceeded(PaymentSucceededEvent event) {
-		log.info("Kafka is disabled, skip publishing payment succeeded event: orderNo={}", event.orderNo());
+		log.info("消息队列未开启，跳过支付成功事件发布: 订单号={}", event.orderNo());
 	}
 }

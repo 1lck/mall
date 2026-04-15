@@ -74,10 +74,10 @@ public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
 		// 如果当前还在事务里，这次投递会被挂到 afterCommit；否则直接触发。
 		outboxDispatchTrigger.requestDispatch(outboxEvent.getId());
 		log.info(
-			"Payment succeeded event saved to outbox: topic={}, orderNo={}, eventType={}",
+			"支付成功事件已写入待投递记录: 消息主题={}, 订单号={}, 事件类型={}",
 			topic,
 			event.orderNo(),
-			EVENT_TYPE
+			"支付成功"
 		);
 	}
 }

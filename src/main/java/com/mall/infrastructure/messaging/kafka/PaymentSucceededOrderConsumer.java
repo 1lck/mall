@@ -55,7 +55,7 @@ public class PaymentSucceededOrderConsumer {
 		) == 1;
 		if (!claimed) {
 			// 即使只是“跳过重复事件”，也统一在事务完成后再 ack，避免两套确认时序。
-			log.info("Kafka payment succeeded event skipped because it was already processed: orderNo={}", event.orderNo());
+			log.info("支付成功事件已处理过，本次直接跳过: 订单号={}", event.orderNo());
 			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 			return;
 		}
@@ -64,23 +64,23 @@ public class PaymentSucceededOrderConsumer {
 			OrderEntity order = orderRepository.findByOrderNo(event.orderNo())
 				.orElseThrow(() -> new BusinessException(
 					ErrorCode.NOT_FOUND,
-					"Order " + event.orderNo() + " was not found"
+					"订单号为 " + event.orderNo() + " 的订单不存在"
 				));
 
 			validateOrderStatusTransition(order.getStatus(), OrderStatus.PAID);
 			order.setStatus(OrderStatus.PAID);
 			orderRepository.save(order);
 
-			log.info("Kafka payment succeeded event consumed and order marked paid: orderNo={}", event.orderNo());
+			log.info("支付成功事件消费完成，订单已标记为已支付: 订单号={}", event.orderNo());
 			// 订单状态落库成功后，再由 afterCommit 回调确认 Kafka offset。
 			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
 		} catch (BusinessException exception) {
 			// 业务异常通常重试也不会改变结果，比如订单不存在、状态流转不合法。
 			// 这里选择记录并结束消费，避免同一条坏消息被无限重放。
 			log.warn(
-				"Kafka payment succeeded event dropped as non-retryable business error: orderNo={}, code={}, message={}",
+				"支付成功事件属于不可重试的业务异常，当前消息将直接丢弃: 订单号={}, 错误类型={}, 错误信息={}",
 				event.orderNo(),
-				exception.getErrorCode(),
+				describeErrorCode(exception.getErrorCode()),
 				exception.getMessage()
 			);
 			KafkaAcknowledgmentSupport.acknowledgeAfterCommit(acknowledgment);
@@ -94,8 +94,33 @@ public class PaymentSucceededOrderConsumer {
 		if (!currentStatus.canTransitionTo(targetStatus)) {
 			throw new BusinessException(
 				ErrorCode.BAD_REQUEST,
-				"Order status cannot transition from " + currentStatus + " to " + targetStatus
+				"订单状态不允许从" + describeOrderStatus(currentStatus) + "流转到" + describeOrderStatus(targetStatus)
 			);
 		}
+	}
+
+	/**
+	 * 把订单状态枚举转换成便于日志和异常阅读的中文描述。
+	 */
+	private String describeOrderStatus(OrderStatus status) {
+		return switch (status) {
+			case CREATED -> "待支付";
+			case PAID -> "已支付";
+			case CANCELLED -> "已取消";
+		};
+	}
+
+	/**
+	 * 把业务错误码转换成日志里更易读的中文分类。
+	 */
+	private String describeErrorCode(ErrorCode errorCode) {
+		return switch (errorCode) {
+			case BAD_REQUEST -> "请求参数错误";
+			case UNAUTHORIZED -> "未登录";
+			case FORBIDDEN -> "无权限";
+			case NOT_FOUND -> "资源不存在";
+			case INTERNAL_ERROR -> "系统异常";
+			case SUCCESS -> "成功";
+		};
 	}
 }

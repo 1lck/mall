@@ -59,10 +59,10 @@ public class KafkaOrderEventPublisher implements OrderEventPublisher {
 		String topic = kafkaTopicsProperties.getTopics().getOrderCreated();
 		kafkaTemplate.send(topic, event.orderNo(), event);
 		log.info(
-				"Kafka order event published: topic={}, orderId={}, orderNo={}",
-				topic,
-				event.orderId(),
-				event.orderNo()
+			"订单创建事件已发送到消息队列: 消息主题={}, 订单记录编号={}, 订单号={}",
+			topic,
+			event.orderId(),
+			event.orderNo()
 		);
 	}
 

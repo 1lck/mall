@@ -63,20 +63,18 @@ public class SecurityConfig {
 			.exceptionHandling(exceptions -> exceptions
 				.authenticationEntryPoint((request, response, exception) -> {
 					log.warn(
-						"Security authentication failed: method={}, path={}, status=401, message={}",
+						"安全认证失败: 请求方法={}, 请求路径={}, 状态码=401, 原因=当前请求未通过身份认证",
 						request.getMethod(),
-						request.getRequestURI(),
-						exception.getMessage()
+						request.getRequestURI()
 					);
 					writeErrorResponse(response, objectMapper, 401, ErrorCode.UNAUTHORIZED, "请先登录后再访问。");
 				})
 				.accessDeniedHandler((request, response, exception) -> {
 					log.warn(
-						"Security access denied: method={}, path={}, user={}, status=403, message={}",
+						"安全鉴权失败: 请求方法={}, 请求路径={}, 用户={}, 状态码=403, 原因=当前账号没有访问权限",
 						request.getMethod(),
 						request.getRequestURI(),
-						resolvePrincipalName(request.getUserPrincipal()),
-						exception.getMessage()
+						resolvePrincipalName(request.getUserPrincipal())
 					);
 					writeErrorResponse(response, objectMapper, 403, ErrorCode.FORBIDDEN, "当前账号没有权限执行该操作。");
 				})
@@ -176,7 +174,7 @@ public class SecurityConfig {
 	 */
 	private String resolvePrincipalName(Principal principal) {
 		if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
-			return "anonymous";
+			return "匿名用户";
 		}
 
 		return principal.getName();

@@ -25,7 +25,7 @@ public class NoOpOrderEventPublisher implements OrderEventPublisher {
 		// 这里故意什么都不发，只打日志。
 		// 这样可以把“业务代码能跑”与“Kafka 环境是否已就绪”拆开处理。
 		log.info(
-			"Kafka is disabled, skip publishing order created event: orderId={}, orderNo={}",
+			"消息队列未开启，跳过订单创建事件发布: 订单记录编号={}, 订单号={}",
 			event.orderId(),
 			event.orderNo()
 		);

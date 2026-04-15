@@ -103,7 +103,7 @@ public class OutboxEventDispatcher {
 			return objectMapper.convertValue(event.getPayload(), PaymentSucceededEvent.class);
 		}
 
-		throw new IllegalArgumentException("Unsupported outbox event type: " + event.getEventType());
+		throw new IllegalArgumentException("暂不支持的待投递事件类型: " + event.getEventType());
 	}
 
 	/**
@@ -122,9 +122,9 @@ public class OutboxEventDispatcher {
 			sentAt
 		);
 		log.info(
-			"Outbox event dispatched successfully: eventId={}, eventType={}, topic={}",
+			"待投递消息发送成功: 事件编号={}, 事件类型={}, 消息主题={}",
 			event.getEventId(),
-			event.getEventType(),
+			describeEventType(event.getEventType()),
 			event.getTopic()
 		);
 	}
@@ -135,6 +135,7 @@ public class OutboxEventDispatcher {
 	private void markFailed(OutboxEventEntity event, Exception exception) {
 		// 发送失败后，统一交给重试策略决定：
 		// 是继续进入 FAILED 等待下次重试，还是进入 DEAD 停止自动重试。
+		String logErrorMessage = describeDispatchException(exception);
 		OutboxRetryPlan retryPlan = outboxRetryPolicy.planFailure(event.getRetryCount(), Instant.now(), exception.getMessage());
 		outboxEventRepository.updateDispatchResult(
 			event.getId(),
@@ -146,22 +147,46 @@ public class OutboxEventDispatcher {
 		);
 		if (retryPlan.status() == OutboxEventStatus.DEAD) {
 			log.error(
-				"Outbox event dispatch reached max retry count and moved to DEAD: eventId={}, eventType={}, retryCount={}, message={}",
+				"待投递消息发送达到最大重试次数，已转入终止状态: 事件编号={}, 事件类型={}, 重试次数={}, 错误信息={}",
 				event.getEventId(),
-				event.getEventType(),
+				describeEventType(event.getEventType()),
 				retryPlan.retryCount(),
-				retryPlan.lastError()
+				logErrorMessage
 			);
 			return;
 		}
 
 		log.warn(
-			"Outbox event dispatch failed and will retry later: eventId={}, eventType={}, retryCount={}, nextRetryAt={}, message={}",
+			"待投递消息发送失败，稍后会自动重试: 事件编号={}, 事件类型={}, 重试次数={}, 下次重试时间={}, 错误信息={}",
 			event.getEventId(),
-			event.getEventType(),
+			describeEventType(event.getEventType()),
 			retryPlan.retryCount(),
 			retryPlan.nextRetryAt(),
-			retryPlan.lastError()
+			logErrorMessage
 		);
+	}
+
+	/**
+	 * 把事件类型代码转换成便于日志阅读的中文描述。
+	 */
+	private String describeEventType(String eventType) {
+		if (PAYMENT_SUCCEEDED_EVENT_TYPE.equals(eventType)) {
+			return "支付成功";
+		}
+
+		return "未知事件类型(" + eventType + ")";
+	}
+
+	/**
+	 * 生成适合写入中文日志的投递失败摘要，避免第三方异常原文直接出现在日志里。
+	 */
+	private String describeDispatchException(Exception exception) {
+		if (exception instanceof IllegalArgumentException illegalArgumentException
+			&& illegalArgumentException.getMessage() != null
+			&& !illegalArgumentException.getMessage().isBlank()) {
+			return illegalArgumentException.getMessage();
+		}
+
+		return "消息发送过程中发生异常，请结合持久化错误详情进一步排查";
 	}
 }
