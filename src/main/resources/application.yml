@@ -27,6 +27,9 @@ mall:
       payment-succeeded: mall.payment.succeeded
       inventory-reserved: mall.inventory.reserved
       inventory-released: mall.inventory.released
+    partitions:
+      order-created: 3
+      payment-succeeded: 3
   auth:
     jwt:
       secret: ${MALL_JWT_SECRET:mall-learning-jwt-secret-key-2026-demo}
