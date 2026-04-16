@@ -19,6 +19,8 @@ public class KafkaTopicsProperties {
 	private String consumerGroup;
 	/** 业务 topic 名称集合。 */
 	private Topics topics = new Topics();
+	/** 启动时自动创建 topic 的分区配置。 */
+	private Partitions partitions = new Partitions();
 
 	/**
 	 * 返回 Kafka 能力是否启用。
@@ -74,6 +76,20 @@ public class KafkaTopicsProperties {
 	 */
 	public void setTopics(Topics topics) {
 		this.topics = topics;
+	}
+
+	/**
+	 * 返回自动创建 topic 的分区配置集合。
+	 */
+	public Partitions getPartitions() {
+		return partitions;
+	}
+
+	/**
+	 * 设置自动创建 topic 的分区配置集合。
+	 */
+	public void setPartitions(Partitions partitions) {
+		this.partitions = partitions;
 	}
 
 	/**
@@ -161,6 +177,47 @@ public class KafkaTopicsProperties {
 		 */
 		public void setInventoryReleased(String inventoryReleased) {
 			this.inventoryReleased = inventoryReleased;
+		}
+	}
+
+	/**
+	 * Kafka 自动创建 topic 的分区配置项。
+	 */
+	public static class Partitions {
+
+		// 当前只有这两个 topic 会由应用启动时自动创建，
+		// 所以先把它们的分区数抽成配置，便于本地练习并发消费。
+		/** 订单创建事件 topic 的分区数。 */
+		private int orderCreated = 1;
+		/** 支付成功事件 topic 的分区数。 */
+		private int paymentSucceeded = 1;
+
+		/**
+		 * 返回订单创建事件 topic 的分区数。
+		 */
+		public int getOrderCreated() {
+			return orderCreated;
+		}
+
+		/**
+		 * 设置订单创建事件 topic 的分区数。
+		 */
+		public void setOrderCreated(int orderCreated) {
+			this.orderCreated = orderCreated;
+		}
+
+		/**
+		 * 返回支付成功事件 topic 的分区数。
+		 */
+		public int getPaymentSucceeded() {
+			return paymentSucceeded;
+		}
+
+		/**
+		 * 设置支付成功事件 topic 的分区数。
+		 */
+		public void setPaymentSucceeded(int paymentSucceeded) {
+			this.paymentSucceeded = paymentSucceeded;
 		}
 	}
 }

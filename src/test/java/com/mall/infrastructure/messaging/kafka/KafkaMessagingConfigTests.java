@@ -1,6 +1,8 @@
 package com.mall.infrastructure.messaging.kafka;
 
+import com.mall.config.KafkaTopicsProperties;
 import com.mall.modules.order.event.OrderCreatedEvent;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
@@ -39,6 +41,23 @@ class KafkaMessagingConfigTests {
 			config.orderCreatedKafkaListenerContainerFactory(consumerFactory);
 
 		assertThat(readCommonErrorHandler(factory)).isNotNull();
+	}
+
+	@Test
+	void orderCreatedTopicShouldUsePartitionCountFromProperties() {
+		KafkaMessagingConfig config = new KafkaMessagingConfig();
+		KafkaTopicsProperties properties = new KafkaTopicsProperties();
+		KafkaTopicsProperties.Topics topics = new KafkaTopicsProperties.Topics();
+		KafkaTopicsProperties.Partitions partitions = new KafkaTopicsProperties.Partitions();
+		topics.setOrderCreated("mall.order.created");
+		partitions.setOrderCreated(3);
+		properties.setTopics(topics);
+		properties.setPartitions(partitions);
+
+		NewTopic topic = config.orderCreatedTopic(properties);
+
+		assertThat(topic.name()).isEqualTo("mall.order.created");
+		assertThat(topic.numPartitions()).isEqualTo(3);
 	}
 
 	/**

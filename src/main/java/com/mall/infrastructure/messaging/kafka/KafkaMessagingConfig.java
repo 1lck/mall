@@ -155,7 +155,7 @@ public class KafkaMessagingConfig {
 		// 启动时自动确保 topic 存在，避免你第一次联调时还得手动创建主题。
 		return TopicBuilder
 			.name(kafkaTopicsProperties.getTopics().getOrderCreated())
-			.partitions(1)
+			.partitions(kafkaTopicsProperties.getPartitions().getOrderCreated())
 			.replicas(1)
 			.build();
 	}
@@ -167,7 +167,7 @@ public class KafkaMessagingConfig {
 	public NewTopic paymentSucceededTopic(KafkaTopicsProperties kafkaTopicsProperties) {
 		return TopicBuilder
 			.name(kafkaTopicsProperties.getTopics().getPaymentSucceeded())
-			.partitions(1)
+			.partitions(kafkaTopicsProperties.getPartitions().getPaymentSucceeded())
 			.replicas(1)
 			.build();
 	}

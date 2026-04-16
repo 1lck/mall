@@ -69,10 +69,16 @@ export const asyncRouterMap: RouteRecordExt[] = [
   {
     path: '/mq',
     component: Layout,
-    redirect: '/mq/outbox',
+    redirect: '/mq/kafka',
     name: 'mq',
     meta: { title: '消息调试', icon: 'product-list' },
     children: [
+      {
+        path: 'kafka',
+        name: 'mqKafka',
+        component: () => import('@/views/mq/kafka/index.vue'),
+        meta: { title: 'Kafka 控制台', icon: 'product-list' },
+      },
       {
         path: 'outbox',
         name: 'mqOutbox',
