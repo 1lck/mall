@@ -67,33 +67,6 @@ export const asyncRouterMap: RouteRecordExt[] = [
     ],
   },
   {
-    path: '/mq',
-    component: Layout,
-    redirect: '/mq/kafka',
-    name: 'mq',
-    meta: { title: '消息调试', icon: 'product-list' },
-    children: [
-      {
-        path: 'kafka',
-        name: 'mqKafka',
-        component: () => import('@/views/mq/kafka/index.vue'),
-        meta: { title: 'Kafka 控制台', icon: 'product-list' },
-      },
-      {
-        path: 'outbox',
-        name: 'mqOutbox',
-        component: () => import('@/views/mq/outbox/index.vue'),
-        meta: { title: '消息观察', icon: 'product-list' },
-      },
-      {
-        path: 'mock',
-        name: 'mqMock',
-        component: () => import('@/views/mq/mock/index.vue'),
-        meta: { title: 'Mock数据', icon: 'product-list' },
-      },
-    ],
-  },
-  {
     path: '/ums',
     component: Layout,
     redirect: '/ums/admin',
