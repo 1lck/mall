@@ -21,6 +21,8 @@ public class KafkaTopicsProperties {
 	private Topics topics = new Topics();
 	/** 启动时自动创建 topic 的分区配置。 */
 	private Partitions partitions = new Partitions();
+	/** 各消费者监听器的并发线程配置。 */
+	private Concurrency concurrency = new Concurrency();
 
 	/**
 	 * 返回 Kafka 能力是否启用。
@@ -90,6 +92,20 @@ public class KafkaTopicsProperties {
 	 */
 	public void setPartitions(Partitions partitions) {
 		this.partitions = partitions;
+	}
+
+	/**
+	 * 返回各消费者监听器的并发线程配置。
+	 */
+	public Concurrency getConcurrency() {
+		return concurrency;
+	}
+
+	/**
+	 * 设置各消费者监听器的并发线程配置。
+	 */
+	public void setConcurrency(Concurrency concurrency) {
+		this.concurrency = concurrency;
 	}
 
 	/**
@@ -215,6 +231,47 @@ public class KafkaTopicsProperties {
 
 		/**
 		 * 设置支付成功事件 topic 的分区数。
+		 */
+		public void setPaymentSucceeded(int paymentSucceeded) {
+			this.paymentSucceeded = paymentSucceeded;
+		}
+	}
+
+	/**
+	 * Kafka 消费者监听器并发配置项。
+	 */
+	public static class Concurrency {
+
+		// 这里按“业务 topic -> 监听器并发数”做配置，
+		// 方便本地把分区数和消费线程数一起调大，验证真正的并行消费效果。
+		/** 订单创建事件监听器并发数。 */
+		private int orderCreated = 1;
+		/** 支付成功事件监听器并发数。 */
+		private int paymentSucceeded = 1;
+
+		/**
+		 * 返回订单创建事件监听器并发数。
+		 */
+		public int getOrderCreated() {
+			return orderCreated;
+		}
+
+		/**
+		 * 设置订单创建事件监听器并发数。
+		 */
+		public void setOrderCreated(int orderCreated) {
+			this.orderCreated = orderCreated;
+		}
+
+		/**
+		 * 返回支付成功事件监听器并发数。
+		 */
+		public int getPaymentSucceeded() {
+			return paymentSucceeded;
+		}
+
+		/**
+		 * 设置支付成功事件监听器并发数。
 		 */
 		public void setPaymentSucceeded(int paymentSucceeded) {
 			this.paymentSucceeded = paymentSucceeded;

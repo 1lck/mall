@@ -70,7 +70,8 @@ public class KafkaMessagingConfig {
 	 */
 	@Bean
 	public ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> orderCreatedKafkaListenerContainerFactory(
-		ConsumerFactory<String, OrderCreatedEvent> orderCreatedConsumerFactory
+		ConsumerFactory<String, OrderCreatedEvent> orderCreatedConsumerFactory,
+		KafkaTopicsProperties kafkaTopicsProperties
 	) {
 		// 监听器工厂就是给 @KafkaListener 用的“消费容器模板”。
 		// 我们这里单独配一份给 OrderCreatedEvent，后面读起来会更清楚。
@@ -78,6 +79,7 @@ public class KafkaMessagingConfig {
 			new ConcurrentKafkaListenerContainerFactory<>();
 		factory.setConsumerFactory(orderCreatedConsumerFactory);
 		factory.setCommonErrorHandler(kafkaCommonErrorHandler());
+		factory.setConcurrency(kafkaTopicsProperties.getConcurrency().getOrderCreated());
 
 		// 手动确认消息。
 		// 第一阶段虽然消费者只是打日志，但先把确认模式定成 manual，
@@ -106,12 +108,14 @@ public class KafkaMessagingConfig {
 	 */
 	@Bean
 	public ConcurrentKafkaListenerContainerFactory<String, PaymentSucceededEvent> paymentSucceededKafkaListenerContainerFactory(
-		ConsumerFactory<String, PaymentSucceededEvent> paymentSucceededConsumerFactory
+		ConsumerFactory<String, PaymentSucceededEvent> paymentSucceededConsumerFactory,
+		KafkaTopicsProperties kafkaTopicsProperties
 	) {
 		ConcurrentKafkaListenerContainerFactory<String, PaymentSucceededEvent> factory =
 			new ConcurrentKafkaListenerContainerFactory<>();
 		factory.setConsumerFactory(paymentSucceededConsumerFactory);
 		factory.setCommonErrorHandler(kafkaCommonErrorHandler());
+		factory.setConcurrency(kafkaTopicsProperties.getConcurrency().getPaymentSucceeded());
 		// 支付成功事件也使用手动确认，便于后续扩展重试和补偿逻辑。
 		factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 		return factory;

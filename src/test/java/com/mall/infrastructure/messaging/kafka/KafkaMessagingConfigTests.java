@@ -36,11 +36,16 @@ class KafkaMessagingConfigTests {
 	void orderCreatedKafkaListenerContainerFactoryShouldRegisterCommonErrorHandler() throws Exception {
 		KafkaMessagingConfig config = new KafkaMessagingConfig();
 		ConsumerFactory<String, OrderCreatedEvent> consumerFactory = mock(ConsumerFactory.class);
+		KafkaTopicsProperties properties = new KafkaTopicsProperties();
+		KafkaTopicsProperties.Concurrency concurrency = new KafkaTopicsProperties.Concurrency();
+		concurrency.setOrderCreated(3);
+		properties.setConcurrency(concurrency);
 
 		ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> factory =
-			config.orderCreatedKafkaListenerContainerFactory(consumerFactory);
+			config.orderCreatedKafkaListenerContainerFactory(consumerFactory, properties);
 
 		assertThat(readCommonErrorHandler(factory)).isNotNull();
+		assertThat(readConcurrency(factory)).isEqualTo(3);
 	}
 
 	@Test
@@ -69,5 +74,16 @@ class KafkaMessagingConfigTests {
 		Field field = factory.getClass().getSuperclass().getDeclaredField("commonErrorHandler");
 		field.setAccessible(true);
 		return (CommonErrorHandler) field.get(factory);
+	}
+
+	/**
+	 * 通过反射读取监听器工厂上的并发线程数配置，确认消费者不会继续停留在默认单线程。
+	 */
+	private Integer readConcurrency(
+		ConcurrentKafkaListenerContainerFactory<String, OrderCreatedEvent> factory
+	) throws Exception {
+		Field field = factory.getClass().getDeclaredField("concurrency");
+		field.setAccessible(true);
+		return (Integer) field.get(factory);
 	}
 }
